@@ -19,7 +19,7 @@ set -x
 
 readonly NAMESPACE="${GCE_PD_DRIVER_NAMESPACE:-gce-pd-csi-driver}"
 readonly DEPLOY_VERSION="${GCE_PD_DRIVER_VERSION:-stable-master}"
-readonly PKGDIR="${GOPATH}/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver"
+readonly PKGDIR="$(dirname "$(readlink -f "$0")")/../.."
 source "${PKGDIR}/deploy/common.sh"
 
 print_usage()
@@ -46,6 +46,7 @@ done
 
 if [[ ! "${DEPLOY_VERSION}" == *noauth* ]]; then
   ensure_var GCE_PD_SA_DIR
+  GCE_PD_SA_DIR=$(echo "$GCE_PD_SA_DIR" | sed 's:/*$::')
 fi
 
 function check_service_account()
@@ -100,5 +101,5 @@ fi
 ${KUBECTL} version
 
 readonly tmp_spec=/tmp/gcp-compute-persistent-disk-csi-driver-specs-generated.yaml
-${KUSTOMIZE_PATH} build "${PKGDIR}/deploy/kubernetes/overlays/${DEPLOY_VERSION}" | tee $tmp_spec
+kustomize build "${PKGDIR}/deploy/kubernetes/overlays/${DEPLOY_VERSION}" | tee $tmp_spec
 ${KUBECTL} apply -v="${VERBOSITY}" -f $tmp_spec
