@@ -1,4 +1,22 @@
 /*
+Copyright (c) Edgeless Systems GmbH
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+This file incorporates work covered by the following copyright and
+permission notice:
+
+
 Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +33,11 @@ limitations under the License.
 package gceGCEDriver
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
-
-	"context"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -29,6 +47,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 
+	"github.com/edgelesssys/constellation/csi/cryptmapper"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/deviceutils"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
@@ -36,16 +55,25 @@ import (
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/resizefs"
 )
 
+type cryptMapper interface {
+	CloseCryptDevice(volumeID string) error
+	OpenCryptDevice(ctx context.Context, source, volumeID string, integrity bool) (string, error)
+	ResizeCryptDevice(ctx context.Context, volumeID string) (string, error)
+	GetDevicePath(volumeID string) (string, error)
+}
+
 type GCENodeServer struct {
 	Driver          *GCEDriver
 	Mounter         *mount.SafeFormatAndMount
 	DeviceUtils     deviceutils.DeviceUtils
 	VolumeStatter   mountmanager.Statter
 	MetadataService metadataservice.MetadataService
+	CryptMapper     cryptMapper
 
 	// A map storing all volumes with ongoing operations so that additional operations
 	// for that same volume (as defined by VolumeID) return an Aborted error
-	volumeLocks *common.VolumeLocks
+	volumeLocks  *common.VolumeLocks
+	evalSymLinks func(string) (string, error)
 }
 
 var _ csi.NodeServer = &GCENodeServer{}
@@ -71,6 +99,7 @@ func getDefaultFsType() string {
 		return defaultLinuxFsType
 	}
 }
+
 func (ns *GCENodeServer) isVolumePathMounted(path string) bool {
 	notMnt, err := ns.Mounter.Interface.IsLikelyNotMountPoint(path)
 	klog.V(4).Infof("NodePublishVolume check volume path %s is mounted %t: error %v", path, !notMnt, err)
@@ -148,14 +177,14 @@ func (ns *GCENodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePub
 	} else if blk := volumeCapability.GetBlock(); blk != nil {
 		klog.V(4).Infof("NodePublishVolume with block volume mode")
 
-		partition := ""
-		if part, ok := req.GetVolumeContext()[common.VolumeAttributePartition]; ok {
-			partition = part
-		}
-
-		sourcePath, err = getDevicePath(ns, volumeID, partition)
+		// [Edgeless] use the mapped device created by NodeStageVolume
+		_, volumeKey, err := common.VolumeIDToKey(volumeID)
 		if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("Error when getting device path: %v", err.Error()))
+		}
+		sourcePath, err = ns.evalSymLinks(filepath.Join("/dev/mapper", volumeKey.Name))
+		if err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("NodePublishVolume can not evaluate source path: %v", err.Error()))
 		}
 
 		// Expose block volume as file at target path
@@ -167,7 +196,7 @@ func (ns *GCENodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePub
 			return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create block file at target path %v: %v", targetPath, err.Error()))
 		}
 	} else {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("NodePublishVolume volume capability must specify either mount or block mode"))
+		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume volume capability must specify either mount or block mode")
 	}
 
 	err = ns.Mounter.Interface.Mount(sourcePath, targetPath, fstype, options)
@@ -209,7 +238,7 @@ func (ns *GCENodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePub
 
 func makeFile(path string) error {
 	// Create file
-	newFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0750)
+	newFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o750)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %w", path, err)
 	}
@@ -280,7 +309,6 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 		partition = part
 	}
 	devicePath, err := getDevicePath(ns, volumeID, partition)
-
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Error when getting device path: %v", err.Error()))
 	}
@@ -297,7 +325,7 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 		return nil, status.Error(codes.Internal, fmt.Sprintf("mkdir failed on disk %s (%v)", stagingTargetPath, err.Error()))
 	}
 
-	// Part 3: Mount device to stagingTargetPath
+	// Get FS type
 	fstype := getDefaultFsType()
 
 	options := []string{}
@@ -306,7 +334,21 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 			fstype = mnt.FsType
 		}
 		options = collectMountOptions(fstype, mnt.MountFlags)
-	} else if blk := volumeCapability.GetBlock(); blk != nil {
+	}
+
+	// [Edgeless] Part 2.5: Map the device as a crypt device, creating a new LUKS partition if needed
+	fstype, integrity := cryptmapper.IsIntegrityFS(fstype)
+	devicePathReal, err := ns.evalSymLinks(devicePath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("could not evaluate device path for device %q: %v", devicePath, err))
+	}
+	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePathReal, volumeKey.Name, integrity)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume failed on volume %v to %s, open crypt device failed (%v)", devicePath, stagingTargetPath, err))
+	}
+
+	// Part 3: Mount device to stagingTargetPath
+	if blk := volumeCapability.GetBlock(); blk != nil {
 		// Noop for Block NodeStageVolume
 		klog.V(4).Infof("NodeStageVolume succeeded on %v to %s, capability is block so this is a no-op", volumeID, stagingTargetPath)
 		return &csi.NodeStageVolumeResponse{}, nil
@@ -377,6 +419,11 @@ func (ns *GCENodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 		klog.Errorf("Failed to find device path for volume %s. Device may not be detached cleanly (error is ignored and unstaging is continuing): %v", volumeID, err.Error())
 	} else if err := ns.DeviceUtils.DisableDevice(devicePath); err != nil {
 		klog.Errorf("Failed to disabled device %s for volume %s. Device may not be detached cleanly (error is ignored and unstaging is continuing): %v", devicePath, volumeID, err.Error())
+	}
+
+	// [Edgeless] Unmap the crypt device so we can properly remove the device from the node
+	if err := ns.CryptMapper.CloseCryptDevice(devicePath); err != nil {
+		return nil, status.Errorf(codes.Internal, "NodeUnstageVolume failed to close mapped crypt device for disk %s: %v", stagingTargetPath, err.Error())
 	}
 
 	klog.V(4).Infof("NodeUnstageVolume succeeded on %v from %s", volumeID, stagingTargetPath)
@@ -473,6 +520,7 @@ func (ns *GCENodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("capacity range is invalid: %v", err.Error()))
 	}
+	reqBytes = reqBytes - cryptmapper.LUKSHeaderSize // LUKS2 header is 16MiB, subtract from request size to get expected value
 
 	volumePath := req.GetVolumePath()
 	if len(volumePath) == 0 {
@@ -484,34 +532,44 @@ func (ns *GCENodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("volume ID is invalid: %v", err.Error()))
 	}
 
-	devicePath, err := getDevicePath(ns, volumeID, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("error when getting device path for %s: %v", volumeID, err.Error()))
-	}
-
 	volumeCapability := req.GetVolumeCapability()
 	if volumeCapability != nil {
 		// VolumeCapability is optional, if specified, validate it
 		if err := validateVolumeCapability(volumeCapability); err != nil {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("VolumeCapability is invalid: %v", err.Error()))
 		}
+	}
 
-		if blk := volumeCapability.GetBlock(); blk != nil {
-			// Noop for Block NodeExpandVolume
-			klog.V(4).Infof("NodeExpandVolume succeeded on %v to %s, capability is block so this is a no-op", volumeID, volumePath)
-			return &csi.NodeExpandVolumeResponse{}, nil
+	if mnt := volumeCapability.GetMount(); mnt != nil {
+		if _, ok := cryptmapper.IsIntegrityFS(mnt.FsType); ok {
+			klog.Error("Integrity protected devices can not be resized")
+			return nil, status.Error(codes.InvalidArgument, "integrity protected devices can not be resized")
 		}
+	}
+
+	devicePath, err := ns.CryptMapper.ResizeCryptDevice(ctx, volKey.Name)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("resizing crypt device: %s", err))
+	}
+
+	if blk := volumeCapability.GetBlock(); blk != nil {
+		// Noop for Block NodeExpandVolume
+		klog.V(4).Infof("NodeExpandVolume succeeded on %v to %s, capability is block so this is a no-op", volumeID, volumePath)
+		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 
 	// TODO(#328): Use requested size in resize if provided
 	resizer := resizefs.NewResizeFs(ns.Mounter)
 	_, err = resizer.Resize(devicePath, volumePath)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("error when resizing volume %s from device '%s' at path '%s': %v", volKey.String(), devicePath, volumePath, err.Error()))
-
+		return nil, status.Error(codes.Internal, fmt.Sprintf("error when resizing volume %s: %v", volKey.String(), err.Error()))
 	}
 
 	diskSizeBytes, err := getBlockSizeBytes(devicePath, ns.Mounter)
+	if err != nil {
+		klog.Errorf("NodeExpandVolume failed: Could not get block size: %v", err)
+		return nil, status.Errorf(codes.Internal, fmt.Sprintf("could not get block size in bytes: %v", err))
+	}
 	if diskSizeBytes < reqBytes {
 		// It's possible that the somewhere the volume size was rounded up, getting more size than requested is a success :)
 		return nil, status.Errorf(codes.Internal, "resize requested for %v but after resize volume was size %v", reqBytes, diskSizeBytes)

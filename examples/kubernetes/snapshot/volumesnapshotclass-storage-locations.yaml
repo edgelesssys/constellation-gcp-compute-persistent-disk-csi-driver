@@ -4,5 +4,5 @@ metadata:
   name: csi-gce-pd-snapshot-class-with-storage-locations
 parameters:
   storage-locations: us-east2
-driver: pd.csi.storage.gke.io
+driver: gcp.csi.confidential.cloud
 deletionPolicy: Delete

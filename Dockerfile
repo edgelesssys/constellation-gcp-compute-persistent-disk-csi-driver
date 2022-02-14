@@ -1,3 +1,21 @@
+# Copyright (c) Edgeless Systems GmbH
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# This file incorporates work covered by the following copyright and
+# permission notice:
+#
+#
 # Copyright 2018 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,95 +30,51 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG BUILDPLATFORM
+FROM ubuntu:20.04 as lib-builder
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    git gcc make autoconf automake autopoint pkg-config libtool gettext libssl-dev libdevmapper-dev \
+    libpopt-dev uuid-dev libsepol1-dev libjson-c-dev libssh-dev libblkid-dev tar libargon2-0-dev libpwquality-dev
 
-FROM --platform=$BUILDPLATFORM golang:1.19.6 as builder
+# Build libcryptsetup from source so we can disable udev support
+RUN git clone -b v2.4.3 https://gitlab.com/cryptsetup/cryptsetup/ /cryptsetup
+WORKDIR /cryptsetup
+RUN ./autogen.sh
+# Disable udev support since this causes a deadlock on Kubernetes
+RUN CC=gcc CXX=g++ CFLAGS="-O1 -g" CXXFLAGS="-O1 -g" ./configure --enable-static --disable-udev
+RUN make
+
+FROM ubuntu:20.04 as builder
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libdevmapper-dev libjson-c-dev wget pkg-config build-essential
+RUN wget https://go.dev/dl/go1.18.4.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.18.4.linux-amd64.tar.gz
+ENV PATH=${PATH}:/usr/local/go/bin
+
+COPY --from=lib-builder /cryptsetup/.libs/libcryptsetup.so /usr/lib/x86_64-linux-gnu/libcryptsetup.so
+COPY --from=lib-builder /cryptsetup/lib/libcryptsetup.pc /usr/lib/x86_64-linux-gnu/pkgconfig/libcryptsetup.pc
+COPY --from=lib-builder /cryptsetup/lib/libcryptsetup.h  /usr/include/libcryptsetup.h
+
+RUN ln -s  /usr/lib/x86_64-linux-gnu/libcryptsetup.so  /usr/lib/x86_64-linux-gnu/libcryptsetup.so.12
 
 ARG STAGINGVERSION
 ARG TARGETPLATFORM
 
+#RUN apt-get update && apt-get install -y libcryptsetup-dev && apt-get autoremove -y && apt-get autoclean -y
 WORKDIR /go/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver
-ADD . .
+COPY . .
 RUN GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GCE_PD_CSI_STAGING_VERSION=$STAGINGVERSION make gce-pd-driver
 
-# Start from Kubernetes Debian base.
-FROM gke.gcr.io/debian-base:bullseye-v1.4.3-gke.0 as debian
-# Install necessary dependencies
-# google_nvme_id script depends on the following packages: nvme-cli, xxd, bash
-RUN clean-install util-linux e2fsprogs mount ca-certificates udev xfsprogs nvme-cli xxd bash
+# MAD HACKS: Build a version first so we can take the scsi_id bin and put it somewhere else in our real build
+FROM k8s.gcr.io/build-image/debian-base:buster-v1.9.0 as mad-hack
+RUN clean-install udev
 
-# Since we're leveraging apt to pull in dependencies, we use `gcr.io/distroless/base` because it includes glibc.
-FROM gcr.io/distroless/base-debian11 as distroless-base
+FROM ubuntu:20.04
+RUN apt-get update && apt-get install -y util-linux e2fsprogs mount ca-certificates udev xfsprogs nvme-cli xxd libdevmapper-dev libjson-c-dev
 
-# The distroless amd64 image has a target triplet of x86_64
-FROM distroless-base AS distroless-amd64
-ENV LIB_DIR_PREFIX x86_64
-
-# The distroless arm64 image has a target triplet of aarch64
-FROM distroless-base AS distroless-arm64
-ENV LIB_DIR_PREFIX aarch64
-
-FROM distroless-$TARGETARCH as output-image
-
-# Copy necessary dependencies into distroless base.
 COPY --from=builder /go/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/bin/gce-pd-csi-driver /gce-pd-csi-driver
-COPY --from=debian /etc/mke2fs.conf /etc/mke2fs.conf
-COPY --from=debian /lib/udev/scsi_id /lib/udev_containerized/scsi_id
-COPY --from=debian /bin/mount /bin/mount
-COPY --from=debian /bin/umount /bin/umount
-COPY --from=debian /sbin/blkid /sbin/blkid
-COPY --from=debian /sbin/blockdev /sbin/blockdev
-COPY --from=debian /sbin/dumpe2fs /sbin/dumpe2fs
-COPY --from=debian /sbin/e* /sbin/
-COPY --from=debian /sbin/e2fsck /sbin/e2fsck
-COPY --from=debian /sbin/fsck /sbin/fsck
-COPY --from=debian /sbin/fsck* /sbin/
-COPY --from=debian /sbin/fsck.xfs /sbin/fsck.xfs
-COPY --from=debian /sbin/mke2fs /sbin/mke2fs
-COPY --from=debian /sbin/mkfs* /sbin/
-COPY --from=debian /sbin/resize2fs /sbin/resize2fs
-COPY --from=debian /sbin/xfs_repair /sbin/xfs_repair
-COPY --from=debian /usr/include/xfs /usr/include/xfs
-COPY --from=debian /usr/lib/xfsprogs/xfs* /usr/lib/xfsprogs/
-COPY --from=debian /usr/sbin/xfs* /usr/sbin/
-# Add dependencies for /lib/udev_containerized/google_nvme_id script
-COPY --from=debian /usr/sbin/nvme /usr/sbin/nvme
-COPY --from=debian /usr/bin/xxd /usr/bin/xxd
-COPY --from=debian /bin/bash /bin/bash
-COPY --from=debian /bin/date /bin/date
-COPY --from=debian /bin/grep /bin/grep
-COPY --from=debian /bin/sed /bin/sed
-COPY --from=debian /bin/ln /bin/ln
-COPY --from=debian /bin/udevadm /bin/udevadm
 
-# Copy shared libraries into distroless base.
-COPY --from=debian /lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre.so.3 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libselinux.so.1 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libtinfo.so.6 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libe2p.so.2 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libcom_err.so.2 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libdevmapper.so.1.02.1 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libext2fs.so.2 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libgcc_s.so.1 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/liblzma.so.5 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libreadline.so.8 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libz.so.1 /lib/${LIB_DIR_PREFIX}-linux-gnu/
-
-COPY --from=debian /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libblkid.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libinih.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libmount.so.1 \         
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libudev.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libuuid.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libacl.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libattr.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicudata.so.67 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicui18n.so.67 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicuuc.so.67 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libkmod.so.2 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre2-8.so.0 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libstdc++.so.6 /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/
-
-# Copy NVME support required script and rules into distroless base.
+COPY --from=lib-builder /cryptsetup/.libs/libcryptsetup.so /usr/lib/x86_64-linux-gnu/libcryptsetup.so
+RUN ln -s  /usr/lib/x86_64-linux-gnu/libcryptsetup.so  /usr/lib/x86_64-linux-gnu/libcryptsetup.so.12
+COPY --from=mad-hack /lib/udev/scsi_id /lib/udev_containerized/scsi_id
 COPY deploy/kubernetes/udev/google_nvme_id /lib/udev_containerized/google_nvme_id
 
 # Build stage used for validation of the output-image
