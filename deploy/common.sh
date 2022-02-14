@@ -25,6 +25,9 @@ function get_needed_roles()
 # Installs kustomize in ${PKGDIR}/bin
 function ensure_kustomize()
 {
-  ensure_var PKGDIR
-  "${PKGDIR}/deploy/kubernetes/install-kustomize.sh"
+  if ! command -v kustomize &> /dev/null
+  then
+    ensure_var PKGDIR
+    "${PKGDIR}/deploy/kubernetes/install-kustomize.sh"
+  fi
 }

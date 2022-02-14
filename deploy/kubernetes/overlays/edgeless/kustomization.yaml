@@ -3,6 +3,8 @@ kind: Kustomization
 namespace:
   gce-pd-csi-driver
 resources:
-- ../stable-1-19
+- ../../base
+patchesStrategicMerge:
+- no-node-driver-registrar-probe.yaml
 transformers:
-- ../../images/prow-gke-release-staging-rc-1-19
+- ../../images/edgeless

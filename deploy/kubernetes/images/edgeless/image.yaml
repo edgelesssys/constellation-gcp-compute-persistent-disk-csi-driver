@@ -1,19 +1,16 @@
-# Note the image names must be based off of those in stable-master, as that's
-# what this kustomization is built on.
-
 apiVersion: builtin
 kind: ImageTagTransformer
 metadata:
-  name: imagetag-csi-provisioner-prow-rc
+  name: imagetag-csi-provisioner
 imageTag:
   name: k8s.gcr.io/sig-storage/csi-provisioner
   newTag: "v2.2.1"
----
 
+---
 apiVersion: builtin
 kind: ImageTagTransformer
 metadata:
-  name: imagetag-csi-attacher-prow-rc
+  name: imagetag-csi-attacher
 imageTag:
   name: k8s.gcr.io/sig-storage/csi-attacher
   newTag: "v3.2.1"
@@ -22,7 +19,7 @@ imageTag:
 apiVersion: builtin
 kind: ImageTagTransformer
 metadata:
-  name: imagetag-csi-resize-prow-rc
+  name: imagetag-csi-resizer
 imageTag:
   name: k8s.gcr.io/sig-storage/csi-resizer
   newTag: "v1.2.0"
@@ -31,7 +28,7 @@ imageTag:
 apiVersion: builtin
 kind: ImageTagTransformer
 metadata:
-  name: imagetag-csi-snapshotter-prow-head
+  name: imagetag-csi-snapshotter
 imageTag:
   name: k8s.gcr.io/sig-storage/csi-snapshotter
   newTag: "v3.0.3"
@@ -40,7 +37,7 @@ imageTag:
 apiVersion: builtin
 kind: ImageTagTransformer
 metadata:
-  name: imagetag-csi-node-registrar-prow-rc
+  name: imagetag-csi-node-registrar
 imageTag:
   name: k8s.gcr.io/sig-storage/csi-node-driver-registrar
   newTag: "v2.3.0"
@@ -49,8 +46,13 @@ imageTag:
 apiVersion: builtin
 kind: ImageTagTransformer
 metadata:
-  name: imagetag-csi-gce-driver-prow-rc
+  name: imagetag-gcepd-driver
 imageTag:
-  name: k8s.gcr.io/cloud-provider-gcp/gcp-compute-persistent-disk-csi-driver
-  newTag: "v1.3.4"
+  name: gke.gcr.io/gcp-compute-persistent-disk-csi-driver
+  # Don't change stable image without changing pdImagePlaceholder in
+  # test/k8s-integration/main.go
+  #newName: k8s.gcr.io/cloud-provider-gcp/gcp-compute-persistent-disk-csi-driver
+  #newTag: "v1.3.4"
+  newName: ghcr.io/edgelesssys/encrypted-gcp-csi-driver
+  newTag: v0.1.0
 ---
