@@ -1,5 +1,10 @@
 /*
 Copyright 2018 The Kubernetes Authors.
+Copyright Edgeless Systems GmbH
+
+NOTE: This file is a modified version from the one of the gcp-compute-persistent-disk-csi-driver project.
+Changes are needed to enable the use of dm-crypt.
+The original copyright notice is kept below.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,6 +20,7 @@ limitations under the License.
 package sanitytest
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -65,7 +71,7 @@ func TestSanity(t *testing.T) {
 	//Initialize GCE Driver
 	identityServer := driver.NewIdentityServer(gceDriver)
 	controllerServer := driver.NewControllerServer(gceDriver, cloudProvider)
-	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter))
+	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{}, func(s string) (string, error) { return s, nil })
 	err = gceDriver.SetupGCEDriver(driverName, vendorVersion, extraLabels, identityServer, controllerServer, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to initialize GCE CSI Driver: %v", err)
@@ -136,4 +142,24 @@ func (p pdIDGenerator) GenerateUniqueValidNodeID() string {
 
 func (p pdIDGenerator) GenerateInvalidNodeID() string {
 	return "fake-nodeid"
+}
+
+type fakeCryptMapper struct {
+	deviceName string
+}
+
+func (s *fakeCryptMapper) CloseCryptDevice(volumeID string) error {
+	return nil
+}
+
+func (s *fakeCryptMapper) OpenCryptDevice(ctx context.Context, source, volumeID string, integrity bool) (string, error) {
+	return "/dev/mapper/" + volumeID, nil
+}
+
+func (s *fakeCryptMapper) ResizeCryptDevice(ctx context.Context, volumeID string) (string, error) {
+	return "/dev/mapper/" + volumeID, nil
+}
+
+func (s *fakeCryptMapper) GetDevicePath(volumeID string) (string, error) {
+	return s.deviceName, nil
 }

@@ -1,5 +1,10 @@
 /*
 Copyright 2018 The Kubernetes Authors.
+Copyright Edgeless Systems GmbH
+
+NOTE: This file is a modified version from the one of the gcp-compute-persistent-disk-csi-driver project.
+Changes are needed to enable the use of dm-crypt.
+The original copyright notice is kept below.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,7 +60,7 @@ func (gceDriver *GCEDriver) SetupGCEDriver(name, vendorVersion string, extraVolu
 	vcam := []csi.VolumeCapability_AccessMode_Mode{
 		csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
-		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+		csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
 	}
 	gceDriver.AddVolumeCapabilityAccessModes(vcam)
 	csc := []csi.ControllerServiceCapability_RPC_Type{
@@ -137,7 +142,7 @@ func NewIdentityServer(gceDriver *GCEDriver) *GCEIdentityServer {
 	}
 }
 
-func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter) *GCENodeServer {
+func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter, mapper cryptMapper, evalSymLinks func(string) (string, error)) *GCENodeServer {
 	return &GCENodeServer{
 		Driver:          gceDriver,
 		Mounter:         mounter,
@@ -145,6 +150,8 @@ func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, devi
 		MetadataService: meta,
 		volumeLocks:     common.NewVolumeLocks(),
 		VolumeStatter:   statter,
+		CryptMapper:     mapper,
+		evalSymLinks:    evalSymLinks,
 	}
 }
 
