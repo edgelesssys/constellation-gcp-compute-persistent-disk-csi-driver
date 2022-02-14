@@ -1,0 +1,14 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-gce-pd-node
+spec:
+  template:
+    spec:
+      containers:
+        - name: gce-pd-driver
+          args:
+            - "--v=5"
+            - "--endpoint=unix:/csi/csi.sock"
+            - "--run-controller-service=false"
+            - "--kms-addr=kms.kube-system:9000"
