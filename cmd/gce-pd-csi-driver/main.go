@@ -1,4 +1,22 @@
 /*
+Copyright (c) Edgeless Systems GmbH
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+This file incorporates work covered by the following copyright and
+permission notice:
+
+
 Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,11 +38,14 @@ import (
 	"flag"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"k8s.io/klog"
 
+	"github.com/edgelesssys/constellation/csi/cryptmapper"
+	cryptKms "github.com/edgelesssys/constellation/csi/kms"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
@@ -34,6 +55,7 @@ import (
 )
 
 var (
+	constellationAddr    = flag.String("kms-addr", "kms.kube-system:9000", "Address of the Constellation Coordinator's VPN API. Used to request keys (default: kms.kube-system:9000")
 	cloudConfigFilePath  = flag.String("cloud-config", "", "Path to GCE cloud provider config")
 	endpoint             = flag.String("endpoint", "unix:/tmp/csi.sock", "CSI endpoint")
 	runControllerService = flag.Bool("run-controller-service", true, "If set to false then the CSI driver does not activate its controller service (default: true)")
@@ -60,7 +82,7 @@ var (
 )
 
 const (
-	driverName = "pd.csi.storage.gke.io"
+	driverName = "gcp.csi.confidential.cloud"
 )
 
 func init() {
@@ -139,7 +161,14 @@ func handle() {
 		if err != nil {
 			klog.Fatalf("Failed to set up metadata service: %v", err)
 		}
-		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter)
+
+		// [Edgeless] set up Constellation key management
+		mapper := cryptmapper.New(
+			cryptKms.NewConstellationKMS(*constellationAddr),
+			&cryptmapper.CryptDevice{},
+		)
+
+		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper, filepath.EvalSymlinks)
 	}
 
 	err = gceDriver.SetupGCEDriver(driverName, version, extraVolumeLabels, identityServer, controllerServer, nodeServer)

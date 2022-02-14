@@ -91,7 +91,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: csi-gce-pd-xfs
-provisioner: pd.csi.storage.gke.io
+provisioner: gcp.csi.confidential.cloud
 parameters:
   type: pd-standard
   csi.storage.k8s.io/fstype: xfs
