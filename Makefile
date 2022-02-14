@@ -1,4 +1,9 @@
 # Copyright 2018 The Kubernetes Authors.
+# Copyright Edgeless Systems GmbH
+#
+# NOTE: This file is a modified version from the one of the gcp-compute-persistent-disk-csi-driver project.
+# Changes are needed to enable the use of dm-crypt.
+# The original copyright notice is kept below.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +26,7 @@ STAGINGIMAGE=${GCE_PD_CSI_STAGING_IMAGE}
 DRIVERBINARY=gce-pd-csi-driver
 DRIVERWINDOWSBINARY=${DRIVERBINARY}.exe
 
-DOCKER=DOCKER_CLI_EXPERIMENTAL=enabled docker
+DOCKER=DOCKER_BUILDKIT=1 docker
 
 BASE_IMAGE_LTSC2019=mcr.microsoft.com/windows/servercore:ltsc2019
 BASE_IMAGE_20H2=mcr.microsoft.com/windows/servercore:20H2
@@ -38,34 +43,35 @@ endif
 all: gce-pd-driver gce-pd-driver-windows
 gce-pd-driver: require-GCE_PD_CSI_STAGING_VERSION
 	mkdir -p bin
-	go build -mod=vendor -gcflags=$(GCFLAGS) -ldflags "-X main.version=$(STAGINGVERSION)" -o bin/${DRIVERBINARY} ./cmd/gce-pd-csi-driver/
+	go build -trimpath -gcflags=$(GCFLAGS) -ldflags "-X main.version=$(STAGINGVERSION) -s -w" -o bin/${DRIVERBINARY} ./cmd/gce-pd-csi-driver/
 
 gce-pd-driver-windows: require-GCE_PD_CSI_STAGING_VERSION
 ifeq (${GOARCH}, amd64)
 	mkdir -p bin
-	GOOS=windows go build -mod=vendor -ldflags -X=main.version=$(STAGINGVERSION) -o bin/${DRIVERWINDOWSBINARY} ./cmd/gce-pd-csi-driver/
+	GOOS=windows go build -ldflags -X=main.version=$(STAGINGVERSION) -o bin/${DRIVERWINDOWSBINARY} ./cmd/gce-pd-csi-driver/
 else
   $(warning gcp-pd-driver-windows only supports amd64.)
 endif
 
-build-container: require-GCE_PD_CSI_STAGING_IMAGE require-GCE_PD_CSI_STAGING_VERSION init-buildx
-	$(DOCKER) buildx build --platform=linux --progress=plain \
+build-container: require-GCE_PD_CSI_STAGING_IMAGE require-GCE_PD_CSI_STAGING_VERSION
+	$(DOCKER) build --platform=linux --progress=plain \
 		-t $(STAGINGIMAGE):$(STAGINGVERSION) \
 		--build-arg BUILDPLATFORM=linux \
-		--build-arg STAGINGVERSION=$(STAGINGVERSION) \
-	  --push .
+		--build-arg STAGINGVERSION=$(STAGINGVERSION) .
 
-build-and-push-windows-container-ltsc2019: require-GCE_PD_CSI_STAGING_IMAGE init-buildx
-	$(DOCKER) buildx build --file=Dockerfile.Windows --platform=windows \
+build-and-push-windows-container-ltsc2019: require-GCE_PD_CSI_STAGING_IMAGE
+	$(DOCKER) build --file=Dockerfile.Windows --platform=windows \
 		-t $(STAGINGIMAGE):$(STAGINGVERSION)_ltsc2019 \
 		--build-arg BASE_IMAGE=$(BASE_IMAGE_LTSC2019) \
-		--build-arg STAGINGVERSION=$(STAGINGVERSION) --push .
+		--build-arg STAGINGVERSION=$(STAGINGVERSION) .
+	$(DOCKER) push $(STAGINGIMAGE):$(STAGINGVERSION)_ltsc2019
 
-build-and-push-windows-container-20H2: require-GCE_PD_CSI_STAGING_IMAGE init-buildx
-	$(DOCKER) buildx build --file=Dockerfile.Windows --platform=windows \
+build-and-push-windows-container-20H2: require-GCE_PD_CSI_STAGING_IMAGE
+	$(DOCKER) build --file=Dockerfile.Windows --platform=windows \
 		-t $(STAGINGIMAGE):$(STAGINGVERSION)_20H2 \
 		--build-arg BASE_IMAGE=$(BASE_IMAGE_20H2) \
-		--build-arg STAGINGVERSION=$(STAGINGVERSION) --push .
+		--build-arg STAGINGVERSION=$(STAGINGVERSION) .
+	$(DOCKER) push $(STAGINGIMAGE):$(STAGINGVERSION)_20H2
 
 build-and-push-multi-arch: build-and-push-container-linux-amd64 build-and-push-container-linux-arm64 build-and-push-windows-container-ltsc2019 build-and-push-windows-container-20H2
 	$(DOCKER) manifest create --amend $(STAGINGIMAGE):$(STAGINGVERSION) $(STAGINGIMAGE):$(STAGINGVERSION)_linux_amd64 $(STAGINGIMAGE):$(STAGINGVERSION)_linux_arm64 $(STAGINGIMAGE):$(STAGINGVERSION)_20H2 $(STAGINGIMAGE):$(STAGINGVERSION)_ltsc2019
@@ -78,30 +84,34 @@ build-and-push-multi-arch-debug: build-and-push-container-linux-debug build-and-
 	$(DOCKER) manifest push -p $(STAGINGIMAGE):$(STAGINGVERSION)
 
 push-container: build-container
+	$(DOCKER) push $(STAGINGIMAGE):$(STAGINGVERSION)
 
-build-and-push-container-linux-amd64: require-GCE_PD_CSI_STAGING_IMAGE init-buildx
-	$(DOCKER) buildx build --platform=linux/amd64 \
+build-and-push-container-linux-amd64: require-GCE_PD_CSI_STAGING_IMAGE
+	$(DOCKER) build --platform=linux/amd64 \
 		-t $(STAGINGIMAGE):$(STAGINGVERSION)_linux_amd64 \
 		--build-arg BUILDPLATFORM=linux \
-		--build-arg STAGINGVERSION=$(STAGINGVERSION) --push .
+		--build-arg STAGINGVERSION=$(STAGINGVERSION) .
+	$(DOCKER) push $(STAGINGIMAGE):$(STAGINGVERSION)_linux_amd64
 
-build-and-push-container-linux-arm64: require-GCE_PD_CSI_STAGING_IMAGE init-buildx
-	$(DOCKER) buildx build --file=Dockerfile --platform=linux/arm64 \
+build-and-push-container-linux-arm64: require-GCE_PD_CSI_STAGING_IMAGE
+	$(DOCKER) build --file=Dockerfile.arm64 --platform=linux/arm64 \
 		-t $(STAGINGIMAGE):$(STAGINGVERSION)_linux_arm64 \
 		--build-arg BUILDPLATFORM=linux \
-		--build-arg STAGINGVERSION=$(STAGINGVERSION) --push .
+		--build-arg STAGINGVERSION=$(STAGINGVERSION) .
+	$(DOCKER) push $(STAGINGIMAGE):$(STAGINGVERSION)_linux_arm64
 
-build-and-push-container-linux-debug: require-GCE_PD_CSI_STAGING_IMAGE init-buildx
-	$(DOCKER) buildx build --file=Dockerfile.debug --platform=linux \
+build-and-push-container-linux-debug: require-GCE_PD_CSI_STAGING_IMAGE
+	$(DOCKER) build --file=Dockerfile.debug --platform=linux \
 		-t $(STAGINGIMAGE):$(STAGINGVERSION)_linux \
 		--build-arg BUILDPLATFORM=linux \
-		--build-arg STAGINGVERSION=$(STAGINGVERSION) --push .
+		--build-arg STAGINGVERSION=$(STAGINGVERSION) .
+	$(DOCKER) push $(STAGINGIMAGE):$(STAGINGVERSION)_linux
 
 test-sanity: gce-pd-driver
-	go test -mod=vendor --v -timeout 30s sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/test/sanity -run ^TestSanity$
+	go test --v -timeout 30s sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/test/sanity -run ^TestSanity$
 
 test-k8s-integration:
-	go build -mod=vendor -o bin/k8s-integration-test ./test/k8s-integration
+	go build -o bin/k8s-integration-test ./test/k8s-integration
 
 require-GCE_PD_CSI_STAGING_IMAGE:
 ifndef GCE_PD_CSI_STAGING_IMAGE
@@ -112,12 +122,3 @@ require-GCE_PD_CSI_STAGING_VERSION:
 ifndef GCE_PD_CSI_STAGING_VERSION
 	$(error "Must set environment variable GCE_PD_CSI_STAGING_VERSION to build a runnable driver")
 endif
-
-init-buildx:
-	# Ensure we use a builder that can leverage it (the default on linux will not)
-	-$(DOCKER) buildx rm multiarch-multiplatform-builder
-	$(DOCKER) buildx create --use --name=multiarch-multiplatform-builder
-	$(DOCKER) run --rm --privileged multiarch/qemu-user-static --reset --credential yes --persistent yes
-	# Register gcloud as a Docker credential helper.
-	# Required for "docker buildx build --push".
-	gcloud auth configure-docker --quiet

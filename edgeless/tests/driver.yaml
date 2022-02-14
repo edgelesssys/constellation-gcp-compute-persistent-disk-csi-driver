@@ -1,0 +1,15 @@
+StorageClass:
+  FromName: true
+DriverInfo:
+  Name: gcp.csi.confidential.cloud
+  SupportedFsType:
+    ext4: {}
+    xfs: {}
+  Capabilities:
+    persistence: true
+    block: true
+    exec: true
+    nodeExpansion: true
+    controllerExpansion: true
+    onlineExpansion: true
+    topology: true

@@ -32,7 +32,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: csi-gce-pd
-provisioner: pd.csi.storage.gke.io
+provisioner: gcp.csi.confidential.cloud
 parameters:
   type: pd-standard
 volumeBindingMode: WaitForFirstConsumer
