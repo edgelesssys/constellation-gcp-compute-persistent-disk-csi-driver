@@ -12,12 +12,12 @@ set -o errexit
 
 readonly NAMESPACE="${GCE_PD_DRIVER_NAMESPACE:-gce-pd-csi-driver}"
 readonly DEPLOY_VERSION="${GCE_PD_DRIVER_VERSION:-stable-master}"
-readonly PKGDIR="${GOPATH}/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver"
+readonly PKGDIR="$(dirname "$(readlink -f "$0")")/../.."
 source "${PKGDIR}/deploy/common.sh"
 
 ensure_kustomize
 
-${KUSTOMIZE_PATH} build "${PKGDIR}/deploy/kubernetes/overlays/${DEPLOY_VERSION}" | ${KUBECTL} delete -v="${VERBOSITY}" --ignore-not-found -f -
+kustomize build "${PKGDIR}/deploy/kubernetes/overlays/${DEPLOY_VERSION}" | ${KUBECTL} delete -v="${VERBOSITY}" --ignore-not-found -f -
 ${KUBECTL} delete secret cloud-sa -v="${VERBOSITY}" --ignore-not-found
 
 if [[ "${NAMESPACE}" != "" && "${NAMESPACE}" != "default" ]] && \

@@ -7,7 +7,8 @@
 set -o nounset
 set -o errexit
 
-readonly INSTALL_DIR="${GOPATH}/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/bin"
+readonly PKGDIR="$(dirname "$(readlink -f "$0")")/../.."
+readonly INSTALL_DIR="${PKGDIR}/bin"
 readonly KUSTOMIZE_PATH="${INSTALL_DIR}/kustomize"
 
 if [ ! -f "${INSTALL_DIR}" ]; then
@@ -25,7 +26,7 @@ if [ -f $where/kustomize ]; then
   exit 1
 fi
 
-tmpDir=`mktemp -d`
+tmpDir=$(mktemp -d)
 if [[ ! "$tmpDir" || ! -d "$tmpDir" ]]; then
   echo "Could not create temp dir."
   exit 1
