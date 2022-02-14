@@ -1,3 +1,21 @@
+# Copyright (c) Edgeless Systems GmbH
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# This file incorporates work covered by the following copyright and
+# permission notice:
+#
+#
 # Copyright 2018 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +43,7 @@ RUN GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GCE_PD_CSI_STAGING_VERSION=$
 FROM gke.gcr.io/debian-base:bullseye-v1.4.3-gke.5 as debian
 # Install necessary dependencies
 # google_nvme_id script depends on the following packages: nvme-cli, xxd, bash
-RUN clean-install util-linux e2fsprogs mount ca-certificates udev xfsprogs nvme-cli xxd bash
+RUN clean-install util-linux e2fsprogs mount ca-certificates udev xfsprogs nvme-cli xxd bash libcryptsetup-dev
 
 # Since we're leveraging apt to pull in dependencies, we use `gcr.io/distroless/base` because it includes glibc.
 FROM gcr.io/distroless/base-debian11 as distroless-base
@@ -70,36 +88,52 @@ COPY --from=debian /bin/grep /bin/grep
 COPY --from=debian /bin/sed /bin/sed
 COPY --from=debian /bin/ln /bin/ln
 COPY --from=debian /bin/udevadm /bin/udevadm
+# Add dependencies for cryptsetup
+COPY --from=debian /sbin/dmsetup /sbin/dmsetup
 
 # Copy shared libraries into distroless base.
 COPY --from=debian /lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre.so.3 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libselinux.so.1 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libtinfo.so.6 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libe2p.so.2 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libcom_err.so.2 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libdevmapper.so.1.02.1 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libext2fs.so.2 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libgcc_s.so.1 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/liblzma.so.5 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libreadline.so.8 \
-                   /lib/${LIB_DIR_PREFIX}-linux-gnu/libz.so.1 /lib/${LIB_DIR_PREFIX}-linux-gnu/
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libselinux.so.1 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libtinfo.so.6 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libe2p.so.2 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libcom_err.so.2 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libdevmapper.so.1.02.1 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libext2fs.so.2 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libgcc_s.so.1 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/liblzma.so.5 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libreadline.so.8 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libz.so.1 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libpthread.so.0 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libcryptsetup.so.12 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libcryptsetup.so \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/
 
 COPY --from=debian /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libblkid.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libbsd.so.0 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libinih.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libmount.so.1 \         
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libudev.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libuuid.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libacl.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libattr.so.1 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libedit.so.2 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicudata.so.67 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicui18n.so.67 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicuuc.so.67 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libkmod.so.2 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libmd.so.0 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre2-8.so.0 \
-                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libstdc++.so.6 /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libbsd.so.0 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libinih.so.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libmount.so.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libudev.so.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libuuid.so.1.3.0 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libuuid.so.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libacl.so.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libattr.so.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libedit.so.2 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicudata.so.67 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicui18n.so.67 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicuuc.so.67 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libkmod.so.2 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libmd.so.0 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre2-8.so.0 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre2-8.so.0.10.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libstdc++.so.6  \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libargon2.so.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libjson-c.so.5.1.0 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libjson-c.so.5 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/engines-1.1/afalg.so \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/engines-1.1/padlock.so \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libcrypto.so.1.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libssl.so.1.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/
 
 # Copy NVME support required script and rules into distroless base.
 COPY deploy/kubernetes/udev/google_nvme_id /lib/udev_containerized/google_nvme_id

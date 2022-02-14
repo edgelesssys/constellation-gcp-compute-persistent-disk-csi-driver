@@ -12,11 +12,6 @@ spec:
       labels:
         app: gcp-compute-persistent-disk-csi-driver
     spec:
-      # Host network must be used for interaction with Workload Identity in GKE
-      # since it replaces GCE Metadata Server with GKE Metadata Server. Remove
-      # this requirement when issue is resolved and before any exposure of
-      # metrics ports
-      hostNetwork: true
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: csi-gce-pd-controller-sa
@@ -30,7 +25,7 @@ spec:
             - "--feature-gates=Topology=true"
             - "--http-endpoint=:22011"
             - "--leader-election-namespace=$(PDCSI_NAMESPACE)"
-            - "--timeout=250s"
+            - "--timeout=450s"
             - "--extra-create-metadata"
           # - "--run-controller-service=false"  # disable the controller service of the CSI driver
           # - "--run-node-service=false"        # disable the node service of the CSI driver
@@ -65,7 +60,7 @@ spec:
             - "--http-endpoint=:22012"
             - "--leader-election"
             - "--leader-election-namespace=$(PDCSI_NAMESPACE)"
-            - "--timeout=250s"
+            - "--timeout=450s"
           env:
             - name: PDCSI_NAMESPACE
               valueFrom:
@@ -123,7 +118,7 @@ spec:
             - "--metrics-address=:22014"
             - "--leader-election"
             - "--leader-election-namespace=$(PDCSI_NAMESPACE)"
-            - "--timeout=300s"
+            - "--timeout=450s"
           env:
             - name: PDCSI_NAMESPACE
               valueFrom:
@@ -136,12 +131,13 @@ spec:
           # Don't change base image without changing pdImagePlaceholder in
           # test/k8s-integration/main.go
           image: gke.gcr.io/gcp-compute-persistent-disk-csi-driver
+          imagePullPolicy: IfNotPresent
           args:
             - "--v=5"
             - "--endpoint=unix:/csi/csi.sock"
           env:
             - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: "/etc/cloud-sa/cloud-sa.json"
+              value: "/etc/cloud-sa/key.json"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -153,4 +149,4 @@ spec:
           emptyDir: {}
         - name: cloud-sa-volume
           secret:
-            secretName: cloud-sa
+            secretName: gcekey

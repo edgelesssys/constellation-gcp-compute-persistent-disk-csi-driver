@@ -1,4 +1,22 @@
 /*
+Copyright (c) Edgeless Systems GmbH
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+This file incorporates work covered by the following copyright and
+permission notice:
+
+
 Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,7 +77,7 @@ func (gceDriver *GCEDriver) SetupGCEDriver(name, vendorVersion string, extraVolu
 	vcam := []csi.VolumeCapability_AccessMode_Mode{
 		csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
-		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+		csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
 	}
 	gceDriver.AddVolumeCapabilityAccessModes(vcam)
 	csc := []csi.ControllerServiceCapability_RPC_Type{
@@ -141,7 +159,7 @@ func NewIdentityServer(gceDriver *GCEDriver) *GCEIdentityServer {
 	}
 }
 
-func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils deviceutils.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter) *GCENodeServer {
+func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils deviceutils.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter, mapper cryptMapper, evalSymLinks func(string) (string, error)) *GCENodeServer {
 	return &GCENodeServer{
 		Driver:          gceDriver,
 		Mounter:         mounter,
@@ -149,6 +167,8 @@ func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, devi
 		MetadataService: meta,
 		volumeLocks:     common.NewVolumeLocks(),
 		VolumeStatter:   statter,
+		CryptMapper:     mapper,
+		evalSymLinks:    evalSymLinks,
 	}
 }
 
@@ -166,7 +186,7 @@ func (gceDriver *GCEDriver) Run(endpoint string, grpcLogCharCap int) {
 	maxLogChar = grpcLogCharCap
 
 	klog.V(4).Infof("Driver: %v", gceDriver.name)
-	//Start the nonblocking GRPC
+	// Start the nonblocking GRPC
 	s := NewNonBlockingGRPCServer()
 	// TODO(#34): Only start specific servers based on a flag.
 	// In the future have this only run specific combinations of servers depending on which version this is.
