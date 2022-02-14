@@ -20,7 +20,7 @@
 set -o nounset
 set -o errexit
 
-readonly PKGDIR="${GOPATH}/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver"
+readonly PKGDIR="$(dirname "$(readlink -f "$0")")/.."
 
 source "${PKGDIR}/deploy/common.sh"
 
@@ -48,7 +48,7 @@ fi
 readonly KUBEDEPLOY="${PKGDIR}/deploy/kubernetes"
 readonly BIND_ROLES=$(get_needed_roles)
 readonly IAM_NAME="${GCE_PD_SA_NAME}@${IAM_PROJECT}.iam.gserviceaccount.com"
-readonly PROJECT_NUMBER=`gcloud projects describe ${PROJECT} --format="value(projectNumber)"`
+readonly PROJECT_NUMBER=$(gcloud projects describe ${PROJECT} --format="value(projectNumber)")
 
 # Check if SA exists
 CREATE_SA=true

@@ -21,6 +21,8 @@ spec:
         kubernetes.io/os: linux
       serviceAccountName: csi-gce-pd-controller-sa
       priorityClassName: csi-gce-pd-controller
+      imagePullSecrets:
+      - name: regcred
       containers:
         - name: csi-provisioner
           image: k8s.gcr.io/sig-storage/csi-provisioner
@@ -136,6 +138,7 @@ spec:
           # Don't change base image without changing pdImagePlaceholder in
           # test/k8s-integration/main.go
           image: gke.gcr.io/gcp-compute-persistent-disk-csi-driver
+          imagePullPolicy: Always
           args:
             - "--v=5"
             - "--endpoint=unix:/csi/csi.sock"
