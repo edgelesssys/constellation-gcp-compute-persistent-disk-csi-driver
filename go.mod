@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go v0.100.2 // indirect
 	github.com/GoogleCloudPlatform/k8s-cloud-provider v0.0.0-20200415212048-7901bc822317
 	github.com/container-storage-interface/spec v1.5.0
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/kubernetes-csi/csi-proxy/client v1.0.0
 	github.com/kubernetes-csi/csi-test/v4 v4.2.0
@@ -35,7 +35,6 @@ require (
 	github.com/edgelesssys/constellation-kms-client v0.0.0-20220214144226-cfdeadc4895b
 	github.com/edgelesssys/constellation-mount-utils v0.0.0-20220214142415-6170ae6b7f21
 	github.com/martinjungblut/go-cryptsetup v0.0.0-20210812184224-543ba394dcd7
-	google.golang.org/protobuf v1.27.1
 )
 
 require (
@@ -76,6 +75,7 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
