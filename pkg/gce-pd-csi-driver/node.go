@@ -17,6 +17,7 @@ package gceGCEDriver
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"context"
@@ -29,6 +30,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/mount-utils"
 
+	"github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
 	mountmanager "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/mount-manager"
@@ -41,6 +43,7 @@ type GCENodeServer struct {
 	DeviceUtils     mountmanager.DeviceUtils
 	VolumeStatter   mountmanager.Statter
 	MetadataService metadataservice.MetadataService
+	CryptMapper     *cryptmapper.CryptMapper
 
 	// A map storing all volumes with ongoing operations so that additional operations
 	// for that same volume (as defined by VolumeID) return an Aborted error
@@ -167,7 +170,7 @@ func (ns *GCENodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePub
 			return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create block file at target path %v: %v", targetPath, err))
 		}
 	} else {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("NodePublishVolume volume capability must specify either mount or block mode"))
+		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume volume capability must specify either mount or block mode")
 	}
 
 	err = ns.Mounter.Interface.Mount(sourcePath, targetPath, fstype, options)
@@ -297,6 +300,16 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 		return nil, status.Error(codes.Internal, fmt.Sprintf("mkdir failed on disk %s (%v)", stagingTargetPath, err))
 	}
 
+	// [Edgeless] Part 2.5: Map the device as a crypt device, creating a new LUKS partition if needed
+	devicePathReal, err := filepath.EvalSymlinks(devicePath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("could not evaluate device path for device %q: %v", devicePath, err))
+	}
+	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePathReal, volumeKey.Name)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume failed on volume %v to %s, open crypt device failed (%v)", devicePath, stagingTargetPath, err))
+	}
+
 	// Part 3: Mount device to stagingTargetPath
 	fstype := getDefaultFsType()
 
@@ -362,6 +375,16 @@ func (ns *GCENodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 
 	if err := cleanupStagePath(stagingTargetPath, ns.Mounter); err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeUnstageVolume failed: %v\nUnmounting arguments: %s\n", err, stagingTargetPath))
+	}
+
+	// [Edgeless] Unmap the crypt device so we can properly remove the device from the node
+	_, volumeKey, err := common.VolumeIDToKey(volumeID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("NodeStageVolume Volume ID is invalid: %v", err))
+	}
+
+	if err := ns.CryptMapper.CloseCryptDevice(volumeKey.Name); err != nil {
+		return nil, status.Errorf(codes.Internal, "NodeUnstageVolume failed to close mapped crypt device for disk %s (%v)", stagingTargetPath, err)
 	}
 
 	klog.V(4).Infof("NodeUnstageVolume succeeded on %v from %s", volumeID, stagingTargetPath)
@@ -497,6 +520,10 @@ func (ns *GCENodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	}
 
 	diskSizeBytes, err := getBlockSizeBytes(devicePath, ns.Mounter)
+	if err != nil {
+		klog.Errorf("NodeExpandVolume failed: Could not get block size: %v", err)
+		return nil, status.Errorf(codes.Internal, fmt.Sprintf("could not get block size in bytes: %v", err))
+	}
 	if diskSizeBytes < reqBytes {
 		// It's possible that the somewhere the volume size was rounded up, getting more size than requested is a success :)
 		return nil, status.Errorf(codes.Internal, "resize requested for %v but after resize volume was size %v", reqBytes, diskSizeBytes)

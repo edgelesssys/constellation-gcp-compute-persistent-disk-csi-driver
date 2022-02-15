@@ -21,10 +21,14 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"k8s.io/klog"
 
+	"github.com/edgelesssys/constellation-kms-client/pkg/kms"
+	"github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper"
+	cryptKms "github.com/edgelesssys/constellation-mount-utils/pkg/kms"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
@@ -34,6 +38,8 @@ import (
 )
 
 var (
+	cryptmapperKMS       = flag.String("kms", "constellation", "Key managment service to use for deriving volume keys (default: constellation)")
+	masterKey            = flag.String("master-key-id", "", "ID of the master key to use for key derivation. Constellation KMS always uses the cluster's master key.")
 	cloudConfigFilePath  = flag.String("cloud-config", "", "Path to GCE cloud provider config")
 	endpoint             = flag.String("endpoint", "unix:/tmp/csi.sock", "CSI endpoint")
 	runControllerService = flag.Bool("run-controller-service", true, "If set to false then the CSI driver does not activate its controller service (default: true)")
@@ -107,14 +113,14 @@ func handle() {
 
 	gceDriver := driver.GetGCEDriver()
 
-	//Initialize GCE Driver
+	// Initialize GCE Driver
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	//Initialize identity server
+	// Initialize identity server
 	identityServer := driver.NewIdentityServer(gceDriver)
 
-	//Initialize requirements for the controller service
+	// Initialize requirements for the controller service
 	var controllerServer *driver.GCEControllerServer
 	if *runControllerService {
 		cloudProvider, err := gce.CreateCloudProvider(ctx, version, *cloudConfigFilePath)
@@ -126,7 +132,7 @@ func handle() {
 		klog.Warningf("controller service is disabled but cloud config given - it has no effect")
 	}
 
-	//Initialize requirements for the node service
+	// Initialize requirements for the node service
 	var nodeServer *driver.GCENodeServer
 	if *runNodeService {
 		mounter, err := mountmanager.NewSafeMounter()
@@ -139,7 +145,19 @@ func handle() {
 		if err != nil {
 			klog.Fatalf("Failed to set up metadata service: %v", err)
 		}
-		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter)
+
+		// [Edgeless] choose a kms client based on flags
+		var kmsClient kms.CloudKMS
+		switch strings.ToLower(*cryptmapperKMS) {
+		case "constellation":
+			klog.V(2).Info("Using in cluster Constellation KMS")
+			kmsClient = cryptKms.NewConstellationKMS("10.118.0.1:9027")
+		default:
+			klog.Fatalf("Failed to set key managment service: unkown KMS or not implemented: %s", *cryptmapperKMS)
+		}
+
+		mapper := cryptmapper.New(kmsClient, *masterKey, &cryptmapper.CryptDevice{})
+		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper)
 	}
 
 	err = gceDriver.SetupGCEDriver(driverName, version, extraVolumeLabels, identityServer, controllerServer, nodeServer)
