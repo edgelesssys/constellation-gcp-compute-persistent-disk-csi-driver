@@ -38,7 +38,8 @@ import (
 )
 
 var (
-	cryptmapperKMS       = flag.String("kms", "constellation", "Key managment service to use for deriving volume keys (default: constellation)")
+	constellationAddr    = flag.String("constellation-addr", "10.118.0.1:9027", "Address of the Constellation Coordinator's VPN API. Used to request keys (default: 10.118.0.1:9027")
+	cryptmapperKMS       = flag.String("kms", "constellation", "Key management service to use for deriving volume keys (default: constellation)")
 	masterKey            = flag.String("master-key-id", "", "ID of the master key to use for key derivation. Constellation KMS always uses the cluster's master key.")
 	cloudConfigFilePath  = flag.String("cloud-config", "", "Path to GCE cloud provider config")
 	endpoint             = flag.String("endpoint", "unix:/tmp/csi.sock", "CSI endpoint")
@@ -151,9 +152,9 @@ func handle() {
 		switch strings.ToLower(*cryptmapperKMS) {
 		case "constellation":
 			klog.V(2).Info("Using in cluster Constellation KMS")
-			kmsClient = cryptKms.NewConstellationKMS("10.118.0.1:9027")
+			kmsClient = cryptKms.NewConstellationKMS(*constellationAddr)
 		default:
-			klog.Fatalf("Failed to set key managment service: unkown KMS or not implemented: %s", *cryptmapperKMS)
+			klog.Fatalf("Failed to set key management service: unknown KMS or not implemented: %s", *cryptmapperKMS)
 		}
 
 		mapper := cryptmapper.New(kmsClient, *masterKey, &cryptmapper.CryptDevice{})
