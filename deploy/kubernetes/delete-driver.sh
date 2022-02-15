@@ -10,8 +10,8 @@
 set -o nounset
 set -o errexit
 
-readonly NAMESPACE="${GCE_PD_DRIVER_NAMESPACE:-gce-pd-csi-driver}"
-readonly DEPLOY_VERSION="${GCE_PD_DRIVER_VERSION:-stable-master}"
+readonly NAMESPACE="${GCE_PD_DRIVER_NAMESPACE:-constellation-csi-gcp}"
+readonly DEPLOY_VERSION="${GCE_PD_DRIVER_VERSION:-edgeless}"
 readonly PKGDIR="$(dirname "$(readlink -f "$0")")/../.."
 source "${PKGDIR}/deploy/common.sh"
 

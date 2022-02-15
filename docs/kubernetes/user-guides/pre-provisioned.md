@@ -40,7 +40,7 @@ kind: PersistentVolume
 metadata:
   name: my-pv
   annotations:
-    pv.kubernetes.io/provisioned-by: pd.csi.storage.gke.io
+    pv.kubernetes.io/provisioned-by: gcp.csi.confidential.cloud
 spec:
   storageClassName: "csi-gce-pd"
   capacity:
@@ -57,7 +57,7 @@ spec:
           - us-central1-c # MODIFY THIS LINE
         # - us-central1-b <For Regional PD>
   csi:
-    driver: "pd.csi.storage.gke.io"
+    driver: "gcp.csi.confidential.cloud"
   # volumeHandle: "projects/${PROJECT}/regions/us-central1/disks/test-disk" <For Regional PD>
     volumeHandle: "projects/${PROJECT}/zones/us-central1-c/disks/test-disk" # MODIFY THIS LINE
 ```

@@ -171,7 +171,7 @@ elsewhere in GCP.
          name: restored-snapshot-content
        spec:
          deletionPolicy: Retain
-         driver: pd.csi.storage.gke.io
+         driver: gcp.csi.confidential.cloud
          source:
            snapshotHandle: projects/$PROJECT_ID/global/snapshots/$SNAPSHOT_ID
          volumeSnapshotRef:
