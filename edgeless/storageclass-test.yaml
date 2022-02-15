@@ -1,8 +1,8 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-gce-pd
-provisioner: pd.csi.storage.gke.io
+  name: encrypted-storage
+provisioner: gcp.csi.confidential.cloud
 parameters:
   type: pd-standard
   replication-type: none

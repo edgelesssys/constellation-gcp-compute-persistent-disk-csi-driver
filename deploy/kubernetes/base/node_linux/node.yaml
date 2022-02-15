@@ -27,7 +27,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/pd.csi.storage.gke.io/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/gcp.csi.confidential.cloud/csi.sock"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -43,7 +43,7 @@ spec:
             exec:
               command:
                 - /csi-node-driver-registrar
-                - --kubelet-registration-path=/var/lib/kubelet/plugins/pd.csi.storage.gke.io/csi.sock
+                - --kubelet-registration-path=/var/lib/kubelet/plugins/gcp.csi.confidential.cloud/csi.sock
                 - --mode=kubelet-registration-probe
         - name: gce-pd-driver
           # Don't change base image without changing pdImagePlaceholder in
@@ -56,10 +56,6 @@ spec:
             - "--run-controller-service=false"
           securityContext:
             privileged: true
-          resources:
-            requests:
-              cpu: 1
-              memory: "2Gi"
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
@@ -91,7 +87,7 @@ spec:
             type: Directory
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/pd.csi.storage.gke.io/
+            path: /var/lib/kubelet/plugins/gcp.csi.confidential.cloud/
             type: DirectoryOrCreate
         - name: device-dir
           hostPath:

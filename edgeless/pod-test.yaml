@@ -5,7 +5,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: csi-gce-pd
+  storageClassName: encrypted-storage
   resources:
     requests:
       storage: 20Gi
