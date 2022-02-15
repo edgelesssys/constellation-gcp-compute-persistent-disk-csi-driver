@@ -1,10 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace:
-  gce-pd-csi-driver
+  constellation-csi-gcp
 resources:
 - ../../base
 patchesStrategicMerge:
 - no-node-driver-registrar-probe.yaml
+- no-win-deployment.yaml
 transformers:
 - ../../images/edgeless

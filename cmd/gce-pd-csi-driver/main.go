@@ -66,7 +66,7 @@ var (
 )
 
 const (
-	driverName = "pd.csi.storage.gke.io"
+	driverName = "gcp.csi.confidential.cloud"
 )
 
 func init() {

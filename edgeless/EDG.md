@@ -1,6 +1,6 @@
 # Constellation modifications & documentation
 
-## Reqiured permissions
+## Required permissions
 
 Permissions required by the service account:
 ```
@@ -11,7 +11,7 @@ roles/compute.storageAdmin
 roles/iam.serviceAccountUser
 ```
 
-Permissions required to create a service account with the required permissions:
+Permissions required to create a service account with the desired permissions:
 ```
 resourcemanager.projects.getIamPolicy
 resourcemanager.projects.setIamPolicy
@@ -47,12 +47,28 @@ GCE_PD_SA_DIR=</directory/for/credentials> \
     ./deploy/kubernetes/deploy-driver.sh
 ```
 
-Create a storage class:
-```yaml
-kubectl apply -f edgeless/test-sc.yaml
+Create a new storage class for encrypted storage:
+
+```shell
+cat <<EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: encrypted-storage
+provisioner: gcp.csi.confidential.cloud
+parameters:
+  type: pd-standard
+  replication-type: none
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.gke.io/zone
+    values:
+    - us-central1-c
+EOF
 ```
 
-We can now create PersistentVolumeClaims using `storageClassName: csi-gce-pd`:
+We can now create PersistentVolumeClaims using `storageClassName: encrypted-storage`:
 
 ```shell
 cat <<EOF | kubectl apply -f -
@@ -63,7 +79,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: csi-gce-pd
+  storageClassName: encrypted-storage
   resources:
     requests:
       storage: 20Gi
@@ -105,14 +121,14 @@ GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/gcp-csi-driver \
 
 Create a pull secret for the storage driver (only necessary if pulling from a private repository):
 ```shell
-kubectl create namespace gce-pd-csi-driver
+kubectl create namespace constellation-csi-gcp
 kubectl create secret generic regcred \
-   --namespace=gce-pd-csi-driver \
+   --namespace=constellation-csi-gcp \
   --from-file=.dockerconfigjson=</path/to/.docker/config.json> \
   --type=kubernetes.io/dockerconfigjson
 ```
 
-Replace `gke.gcr.io/gcp-compute-persistent-disk-csi-driver` in `deploy/images/stable-master/image.yaml` with your own image and tag.
+Replace `gke.gcr.io/gcp-compute-persistent-disk-csi-driver` in `deploy/images/edgeless/image.yaml` with your own image and tag.
 You should now be able to deploy our version of the storage driver: 
 ```shell
 GCE_PD_SA_DIR=</directory/for/credentials> \
