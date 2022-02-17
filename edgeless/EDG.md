@@ -42,7 +42,7 @@ PROJECT=<PROJECT_ID> \
 
 Deploy the driver to the Cluster.
 ```
-GCE_PD_SA_DIR=</directory/for/credentials> \
+GCE_PD_SA_FILE=</directory/for/credentials/cloud-sa.json> \
     GCE_PD_DRIVER_VERSION=edgeless \
     ./deploy/kubernetes/deploy-driver.sh
 ```
@@ -131,7 +131,7 @@ kubectl create secret generic regcred \
 Replace `gke.gcr.io/gcp-compute-persistent-disk-csi-driver` in `deploy/images/edgeless/image.yaml` with your own image and tag.
 You should now be able to deploy our version of the storage driver: 
 ```shell
-GCE_PD_SA_DIR=</directory/for/credentials> \
+GCE_PD_SA_FILE=</directory/for/credentials/cloud-sa.json> \
     GCE_PD_DRIVER_VERSION=stable-master \
     ./deploy/kubernetes/deploy-driver.sh
 ```
