@@ -7,27 +7,27 @@ import (
 	"github.com/edgelesssys/constellation-kms-client/pkg/kms"
 )
 
-// StaticKMS is a KMS only returning one key for every request.
+// staticKMS is a KMS only returning keys containing of 0x41 bytes for every request.
 // Use for testing ONLY.
-type StaticKMS struct {
-	masterKey [32]byte
-}
+type staticKMS struct{}
 
 // NewStaticKMS creates a new StaticKMS.
 // Use for testing ONLY.
-func NewStaticKMS(masterKey [32]byte) *StaticKMS {
-	return &StaticKMS{
-		masterKey: masterKey,
-	}
+func NewStaticKMS() *staticKMS {
+	return &staticKMS{}
 }
 
-// GetDEK returns the key of StaticKMS.
-func (k *StaticKMS) GetDEK(ctx context.Context, kekID, dekID string) ([]byte, error) {
-	return k.masterKey[:], nil
+// GetDEK returns the key of staticKMS.
+func (k *staticKMS) GetDEK(ctx context.Context, kekID, dekID string, dekSize int) ([]byte, error) {
+	key := make([]byte, dekSize)
+	for i := range key {
+		key[i] = 0x41
+	}
+	return key, nil
 }
 
 // CreateKEK implements the kmsClient interface.
 // Not implemented for StaticKMS.
-func (k *StaticKMS) CreateKEK(ctx context.Context, keyID string, kek []byte, policyProducer kms.KeyPolicyProducer) ([]byte, error) {
+func (k *staticKMS) CreateKEK(ctx context.Context, keyID string, kek []byte, policyProducer kms.KeyPolicyProducer) ([]byte, error) {
 	return nil, errors.New("not implemented for StaticKMS")
 }
