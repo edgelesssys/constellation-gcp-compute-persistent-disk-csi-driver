@@ -114,8 +114,8 @@ Remove the driver by running the following:
 
 Build and push container:
 ```shell
-GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/gcp-csi-driver \
-  GCE_PD_CSI_STAGING_VERSION=edgeless \
+GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/encrypted-gcp-csi-driver \
+  GCE_PD_CSI_STAGING_VERSION=test \
   make push-container
 ```
 
