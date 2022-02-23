@@ -67,12 +67,7 @@ func TestSanity(t *testing.T) {
 	//Initialize GCE Driver
 	identityServer := driver.NewIdentityServer(gceDriver)
 	controllerServer := driver.NewControllerServer(gceDriver, cloudProvider)
-	mapper := cryptmapper.New(kms.NewStaticKMS([32]byte{
-		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
-		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
-		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
-		0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
-	}), "", &cryptmapper.CryptDevice{})
+	mapper := cryptmapper.New(kms.NewStaticKMS(), "", &cryptmapper.CryptDevice{})
 	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), mapper)
 	err = gceDriver.SetupGCEDriver(driverName, vendorVersion, extraLabels, identityServer, controllerServer, nodeServer)
 	if err != nil {

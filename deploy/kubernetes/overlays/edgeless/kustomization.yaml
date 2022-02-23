@@ -7,5 +7,6 @@ resources:
 patchesStrategicMerge:
 - no-node-driver-registrar-probe.yaml
 - no-win-deployment.yaml
+- node-args.yaml
 transformers:
 - ../../images/edgeless

@@ -32,8 +32,8 @@ require (
 require (
 	cloud.google.com/go/compute v1.2.0
 	cloud.google.com/go/kms v1.2.0
-	github.com/edgelesssys/constellation-kms-client v0.0.0-20220214144226-cfdeadc4895b
-	github.com/edgelesssys/constellation-mount-utils v0.0.0-20220214142415-6170ae6b7f21
+	github.com/edgelesssys/constellation-kms-client v0.0.0-20220222090323-9652844b936e
+	github.com/edgelesssys/constellation-mount-utils v0.0.0-20220222131536-2823e336dc9b
 	github.com/martinjungblut/go-cryptsetup v0.0.0-20210812184224-543ba394dcd7
 )
 
@@ -44,7 +44,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/edgelesssys/constellation-coordinator v0.0.0-20220211115102-eaf4865ae2fe // indirect
+	github.com/edgelesssys/constellation-coordinator v0.0.0-20220222075734-b7201eda4737 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-logr/logr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -87,6 +87,7 @@ require (
 )
 
 replace (
+	github.com/martinjungblut/go-cryptsetup => github.com/daniel-weisse/go-cryptsetup v0.0.0-20220222101736-192d97dc235b
 	k8s.io/api => k8s.io/api v0.22.0
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.22.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.22.0
