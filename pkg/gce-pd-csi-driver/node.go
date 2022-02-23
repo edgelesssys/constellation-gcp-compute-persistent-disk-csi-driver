@@ -44,6 +44,7 @@ type GCENodeServer struct {
 	VolumeStatter   mountmanager.Statter
 	MetadataService metadataservice.MetadataService
 	CryptMapper     *cryptmapper.CryptMapper
+	Integrity       bool
 
 	// A map storing all volumes with ongoing operations so that additional operations
 	// for that same volume (as defined by VolumeID) return an Aborted error
@@ -305,7 +306,7 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("could not evaluate device path for device %q: %v", devicePath, err))
 	}
-	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePathReal, volumeKey.Name)
+	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePathReal, volumeKey.Name, ns.Integrity)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume failed on volume %v to %s, open crypt device failed (%v)", devicePath, stagingTargetPath, err))
 	}
