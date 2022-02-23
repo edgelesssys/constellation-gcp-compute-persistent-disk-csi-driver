@@ -7,6 +7,6 @@ import (
 )
 
 type kmsClient interface {
-	GetDEK(ctx context.Context, kekID, dekID string) ([]byte, error)
+	GetDEK(ctx context.Context, kekID, dekID string, dekSize int) ([]byte, error)
 	CreateKEK(ctx context.Context, keyID string, kek []byte, policyProducer kms.KeyPolicyProducer) ([]byte, error)
 }

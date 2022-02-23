@@ -32,14 +32,13 @@ github.com/container-storage-interface/spec/lib/go/csi
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/edgelesssys/constellation-coordinator v0.0.0-20220211115102-eaf4865ae2fe
+# github.com/edgelesssys/constellation-coordinator v0.0.0-20220222075734-b7201eda4737
 ## explicit; go 1.17
 github.com/edgelesssys/constellation-coordinator/coordinator/vpnapi/vpnproto
-# github.com/edgelesssys/constellation-kms-client v0.0.0-20220214144226-cfdeadc4895b
+# github.com/edgelesssys/constellation-kms-client v0.0.0-20220222090323-9652844b936e
 ## explicit; go 1.17
-github.com/edgelesssys/constellation-kms-client/pkg/config
 github.com/edgelesssys/constellation-kms-client/pkg/kms
-# github.com/edgelesssys/constellation-mount-utils v0.0.0-20220214142415-6170ae6b7f21
+# github.com/edgelesssys/constellation-mount-utils v0.0.0-20220222131536-2823e336dc9b
 ## explicit; go 1.17
 github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper
 github.com/edgelesssys/constellation-mount-utils/pkg/kms
@@ -121,7 +120,7 @@ github.com/kubernetes-csi/csi-proxy/client/groups/volume/v1beta1
 ## explicit; go 1.16
 github.com/kubernetes-csi/csi-test/v4/pkg/sanity
 github.com/kubernetes-csi/csi-test/v4/utils
-# github.com/martinjungblut/go-cryptsetup v0.0.0-20210812184224-543ba394dcd7
+# github.com/martinjungblut/go-cryptsetup v0.0.0-20210812184224-543ba394dcd7 => github.com/daniel-weisse/go-cryptsetup v0.0.0-20220222101736-192d97dc235b
 ## explicit; go 1.16
 github.com/martinjungblut/go-cryptsetup
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
@@ -681,6 +680,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# github.com/martinjungblut/go-cryptsetup => github.com/daniel-weisse/go-cryptsetup v0.0.0-20220222101736-192d97dc235b
 # k8s.io/api => k8s.io/api v0.22.0
 # k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.22.0
 # k8s.io/apimachinery => k8s.io/apimachinery v0.22.0

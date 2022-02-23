@@ -41,6 +41,7 @@ var (
 	constellationAddr    = flag.String("constellation-addr", "10.118.0.1:9027", "Address of the Constellation Coordinator's VPN API. Used to request keys (default: 10.118.0.1:9027")
 	cryptmapperKMS       = flag.String("kms", "constellation", "Key management service to use for deriving volume keys (default: constellation)")
 	masterKey            = flag.String("master-key-id", "", "ID of the master key to use for key derivation. Constellation KMS always uses the cluster's master key.")
+	integrity            = flag.Bool("integrity", false, "Set to enable dm-integrity for mounted volumes (default: false)")
 	cloudConfigFilePath  = flag.String("cloud-config", "", "Path to GCE cloud provider config")
 	endpoint             = flag.String("endpoint", "unix:/tmp/csi.sock", "CSI endpoint")
 	runControllerService = flag.Bool("run-controller-service", true, "If set to false then the CSI driver does not activate its controller service (default: true)")
@@ -159,6 +160,7 @@ func handle() {
 
 		mapper := cryptmapper.New(kmsClient, *masterKey, &cryptmapper.CryptDevice{})
 		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper)
+		nodeServer.Integrity = *integrity
 	}
 
 	err = gceDriver.SetupGCEDriver(driverName, version, extraVolumeLabels, identityServer, controllerServer, nodeServer)

@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/edgelesssys/constellation-coordinator/coordinator/vpnapi/vpnproto"
-	"github.com/edgelesssys/constellation-kms-client/pkg/config"
 	"github.com/edgelesssys/constellation-kms-client/pkg/kms"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -27,7 +26,7 @@ func NewConstellationKMS(coordinatorEndpoint string) *ConstellationKMS {
 }
 
 // GetDEK connects to the Constellation Coordinators VPN API to request a data encryption key derived from the Constellation's master secret.
-func (k *ConstellationKMS) GetDEK(ctx context.Context, kekID, dekID string) ([]byte, error) {
+func (k *ConstellationKMS) GetDEK(ctx context.Context, kekID, dekID string, dekSize int) ([]byte, error) {
 	conn, err := grpc.DialContext(ctx, k.endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
@@ -38,7 +37,7 @@ func (k *ConstellationKMS) GetDEK(ctx context.Context, kekID, dekID string) ([]b
 		ctx,
 		&vpnproto.GetDataKeyRequest{
 			DataKeyId: dekID,
-			Length:    config.SymmetricKeyLength,
+			Length:    uint32(dekSize),
 		},
 		conn,
 	)
