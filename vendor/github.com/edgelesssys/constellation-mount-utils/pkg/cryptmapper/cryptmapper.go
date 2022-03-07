@@ -29,15 +29,15 @@ var packageLock = sync.Mutex{}
 
 // CryptMapper manages dm-crypt volumes.
 type CryptMapper struct {
-	mapper deviceMapper
-	kms    kmsClient
+	mapper DeviceMapper
+	kms    KeyCreator
 	kekID  string
 }
 
 // New initializes a new CryptMapper with the given kms client and key-encryption-key ID.
 // kms is used to fetch data encryption keys for the dm-crypt volumes.
 // kekID is the ID of the key used to encrypt the data encryption keys.
-func New(kms kmsClient, kekID string, mapper deviceMapper) *CryptMapper {
+func New(kms KeyCreator, kekID string, mapper DeviceMapper) *CryptMapper {
 	return &CryptMapper{
 		mapper: mapper,
 		kms:    kms,
@@ -45,8 +45,13 @@ func New(kms kmsClient, kekID string, mapper deviceMapper) *CryptMapper {
 	}
 }
 
-// deviceMapper is an interface for device mapper methods.
-type deviceMapper interface {
+// KeyCreator is an interface to create data encryption keys.
+type KeyCreator interface {
+	GetDEK(ctx context.Context, kekID, dekID string, dekSize int) ([]byte, error)
+}
+
+// DeviceMapper is an interface for device mapper methods.
+type DeviceMapper interface {
 	// Init initializes a crypt device backed by 'devicePath'.
 	// Sets the devieMapper to the newly allocated Device or returns any error encountered.
 	// C equivalent: crypt_init
@@ -139,7 +144,7 @@ func (c *CryptMapper) CloseCryptDevice(volumeID string) error {
 }
 
 // closeCryptDevice closes the crypt device mapped for volumeID.
-func closeCryptDevice(device deviceMapper, source, volumeID, deviceType string) error {
+func closeCryptDevice(device DeviceMapper, source, volumeID, deviceType string) error {
 	packageLock.Lock()
 	defer packageLock.Unlock()
 
@@ -180,7 +185,7 @@ func (c *CryptMapper) OpenCryptDevice(ctx context.Context, source, volumeID stri
 }
 
 // openCryptDevice maps the volume at source to the crypt device identified by volumeID.
-func openCryptDevice(device deviceMapper, source, volumeID, dek string, integrity bool, diskInfo func(disk string) (string, error)) (string, error) {
+func openCryptDevice(device DeviceMapper, source, volumeID, dek string, integrity bool, diskInfo func(disk string) (string, error)) (string, error) {
 	packageLock.Lock()
 	defer packageLock.Unlock()
 
@@ -269,7 +274,7 @@ func openCryptDevice(device deviceMapper, source, volumeID, dek string, integrit
 }
 
 // performWipe handles setting up parameters and clearing the device for dm-integrity.
-func performWipe(device deviceMapper, volumeID, dek string) error {
+func performWipe(device DeviceMapper, volumeID, dek string) error {
 	klog.V(4).Infof("Preparing device for dm-integrity. This may take while...")
 	tmpDevice := "temporary-cryptsetup-" + volumeID
 

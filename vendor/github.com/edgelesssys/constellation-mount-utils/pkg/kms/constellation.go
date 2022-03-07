@@ -2,16 +2,14 @@ package kms
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/edgelesssys/constellation-coordinator/coordinator/vpnapi/vpnproto"
-	"github.com/edgelesssys/constellation-kms-client/pkg/kms"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// ConstellationKMS is a kmsClient using the Constellation Coordinator to fetch volume keys.
+// ConstellationKMS is a key service using the Constellation Coordinator to fetch volume keys.
 type ConstellationKMS struct {
 	endpoint string
 	vpn      vpnClient
@@ -46,12 +44,6 @@ func (k *ConstellationKMS) GetDEK(ctx context.Context, kekID, dekID string, dekS
 	}
 
 	return res.DataKey, nil
-}
-
-// CreateKEK implements the kmsClient interface.
-// Not implemented for ConstellationKMS.
-func (k *ConstellationKMS) CreateKEK(ctx context.Context, keyID string, kek []byte, policyProducer kms.KeyPolicyProducer) ([]byte, error) {
-	return nil, errors.New("not implemented for ConstellationKMS")
 }
 
 type vpnClient interface {
