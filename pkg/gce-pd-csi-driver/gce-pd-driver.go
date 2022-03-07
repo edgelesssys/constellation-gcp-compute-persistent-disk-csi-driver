@@ -137,7 +137,7 @@ func NewIdentityServer(gceDriver *GCEDriver) *GCEIdentityServer {
 	}
 }
 
-func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter, mapper *cryptmapper.CryptMapper) *GCENodeServer {
+func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter, mapper *cryptmapper.CryptMapper, evalSymLinks func(string) (string, error)) *GCENodeServer {
 	return &GCENodeServer{
 		Driver:          gceDriver,
 		Mounter:         mounter,
@@ -146,6 +146,7 @@ func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, devi
 		volumeLocks:     common.NewVolumeLocks(),
 		VolumeStatter:   statter,
 		CryptMapper:     mapper,
+		evalSymLinks:    evalSymLinks,
 	}
 }
 
@@ -161,7 +162,7 @@ func NewControllerServer(gceDriver *GCEDriver, cloudProvider gce.GCECompute) *GC
 func (gceDriver *GCEDriver) Run(endpoint string) {
 	klog.V(4).Infof("Driver: %v", gceDriver.name)
 
-	//Start the nonblocking GRPC
+	// Start the nonblocking GRPC
 	s := NewNonBlockingGRPCServer()
 	// TODO(#34): Only start specific servers based on a flag.
 	// In the future have this only run specific combinations of servers depending on which version this is.
