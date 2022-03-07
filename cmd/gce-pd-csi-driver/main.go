@@ -20,12 +20,11 @@ import (
 	"flag"
 	"math/rand"
 	"os"
-	"strings"
+	"path/filepath"
 	"time"
 
 	"k8s.io/klog"
 
-	"github.com/edgelesssys/constellation-kms-client/pkg/kms"
 	"github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper"
 	cryptKms "github.com/edgelesssys/constellation-mount-utils/pkg/kms"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
@@ -38,7 +37,6 @@ import (
 
 var (
 	constellationAddr    = flag.String("constellation-addr", "10.118.0.1:9027", "Address of the Constellation Coordinator's VPN API. Used to request keys (default: 10.118.0.1:9027")
-	cryptmapperKMS       = flag.String("kms", "constellation", "Key management service to use for deriving volume keys (default: constellation)")
 	masterKey            = flag.String("master-key-id", "", "ID of the master key to use for key derivation. Constellation KMS always uses the cluster's master key.")
 	integrity            = flag.Bool("integrity", false, "Set to enable dm-integrity for mounted volumes (default: false)")
 	cloudConfigFilePath  = flag.String("cloud-config", "", "Path to GCE cloud provider config")
@@ -96,14 +94,14 @@ func handle() {
 
 	gceDriver := driver.GetGCEDriver()
 
-	//Initialize GCE Driver
+	// Initialize GCE Driver
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	//Initialize identity server
+	// Initialize identity server
 	identityServer := driver.NewIdentityServer(gceDriver)
 
-	//Initialize requirements for the controller service
+	// Initialize requirements for the controller service
 	var controllerServer *driver.GCEControllerServer
 	if *runControllerService {
 		cloudProvider, err := gce.CreateCloudProvider(ctx, version, *cloudConfigFilePath)
@@ -115,7 +113,7 @@ func handle() {
 		klog.Warningf("controller service is disabled but cloud config given - it has no effect")
 	}
 
-	//Initialize requirements for the node service
+	// Initialize requirements for the node service
 	var nodeServer *driver.GCENodeServer
 	if *runNodeService {
 		mounter, err := mountmanager.NewSafeMounter()
@@ -129,18 +127,14 @@ func handle() {
 			klog.Fatalf("Failed to set up metadata service: %v", err)
 		}
 
-		// [Edgeless] choose a kms client based on flags
-		var kmsClient kms.CloudKMS
-		switch strings.ToLower(*cryptmapperKMS) {
-		case "constellation":
-			klog.V(2).Info("Using in cluster Constellation KMS")
-			kmsClient = cryptKms.NewConstellationKMS(*constellationAddr)
-		default:
-			klog.Fatalf("Failed to set key management service: unknown KMS or not implemented: %s", *cryptmapperKMS)
-		}
+		// [Edgeless] set up Constellation key management
+		mapper := cryptmapper.New(
+			cryptKms.NewConstellationKMS(*constellationAddr),
+			*masterKey,
+			&cryptmapper.CryptDevice{},
+		)
 
-		mapper := cryptmapper.New(kmsClient, *masterKey, &cryptmapper.CryptDevice{})
-		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper)
+		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper, filepath.EvalSymlinks)
 		nodeServer.Integrity = *integrity
 	}
 
