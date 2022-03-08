@@ -65,13 +65,17 @@ func (c *stubCryptDevice) Wipe(devicePath string, pattern int, offset, length ui
 	return nil
 }
 
+func fakeEvalSymlinks(path string) (string, error) {
+	return path, nil
+}
+
 func getTestGCEDriver(t *testing.T) *GCEDriver {
 	return getCustomTestGCEDriver(t, mountmanager.NewFakeSafeMounter(), mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService())
 }
 
 func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, metaService metadataservice.MetadataService) *GCEDriver {
 	gceDriver := GetGCEDriver()
-	nodeServer := NewNodeServer(gceDriver, mounter, deviceUtils, metaService, mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{}))
+	nodeServer := NewNodeServer(gceDriver, mounter, deviceUtils, metaService, mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{}), fakeEvalSymlinks)
 	err := gceDriver.SetupGCEDriver(driver, "test-vendor", nil, nil, nil, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to setup GCE Driver: %v", err)
@@ -82,7 +86,7 @@ func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, dev
 func getTestBlockingGCEDriver(t *testing.T, readyToExecute chan chan struct{}) *GCEDriver {
 	gceDriver := GetGCEDriver()
 	mounter := mountmanager.NewFakeSafeBlockingMounter(readyToExecute)
-	nodeServer := NewNodeServer(gceDriver, mounter, mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{}))
+	nodeServer := NewNodeServer(gceDriver, mounter, mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{}), fakeEvalSymlinks)
 	err := gceDriver.SetupGCEDriver(driver, "test-vendor", nil, nil, nil, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to setup GCE Driver: %v", err)

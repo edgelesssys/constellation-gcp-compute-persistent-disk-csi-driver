@@ -25,6 +25,7 @@ import (
 	"github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper"
 	"github.com/edgelesssys/constellation-mount-utils/pkg/kms"
 	"github.com/google/uuid"
+	"github.com/martinjungblut/go-cryptsetup"
 	"google.golang.org/grpc"
 
 	sanity "github.com/kubernetes-csi/csi-test/v4/pkg/sanity"
@@ -67,8 +68,8 @@ func TestSanity(t *testing.T) {
 	//Initialize GCE Driver
 	identityServer := driver.NewIdentityServer(gceDriver)
 	controllerServer := driver.NewControllerServer(gceDriver, cloudProvider)
-	mapper := cryptmapper.New(kms.NewStaticKMS(), "", &cryptmapper.CryptDevice{})
-	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), mapper)
+	mapper := cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{})
+	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), mapper, func(s string) (string, error) { return s, nil })
 	err = gceDriver.SetupGCEDriver(driverName, vendorVersion, extraLabels, identityServer, controllerServer, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to initialize GCE CSI Driver: %v", err)
@@ -139,4 +140,34 @@ func (p pdIDGenerator) GenerateUniqueValidNodeID() string {
 
 func (p pdIDGenerator) GenerateInvalidNodeID() string {
 	return "fake-nodeid"
+}
+
+type stubCryptDevice struct{}
+
+func (c *stubCryptDevice) Init(devicePath string) error {
+	return nil
+}
+
+func (c *stubCryptDevice) ActivateByVolumeKey(deviceName, volumeKey string, volumeKeySize, flags int) error {
+	return nil
+}
+
+func (c *stubCryptDevice) Deactivate(deviceName string) error {
+	return nil
+}
+
+func (c *stubCryptDevice) Format(deviceType cryptsetup.DeviceType, genericParams cryptsetup.GenericParams) error {
+	return nil
+}
+
+func (c *stubCryptDevice) Free() bool {
+	return true
+}
+
+func (c *stubCryptDevice) Load() error {
+	return nil
+}
+
+func (c *stubCryptDevice) Wipe(devicePath string, pattern int, offset, length uint64, wipeBlockSize int, flags int, progress func(size, offset uint64) int) error {
+	return nil
 }
