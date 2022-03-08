@@ -2,9 +2,6 @@ package kms
 
 import (
 	"context"
-	"errors"
-
-	"github.com/edgelesssys/constellation-kms-client/pkg/kms"
 )
 
 // staticKMS is a KMS only returning keys containing of 0x41 bytes for every request.
@@ -24,10 +21,4 @@ func (k *staticKMS) GetDEK(ctx context.Context, kekID, dekID string, dekSize int
 		key[i] = 0x41
 	}
 	return key, nil
-}
-
-// CreateKEK implements the kmsClient interface.
-// Not implemented for StaticKMS.
-func (k *staticKMS) CreateKEK(ctx context.Context, keyID string, kek []byte, policyProducer kms.KeyPolicyProducer) ([]byte, error) {
-	return nil, errors.New("not implemented for StaticKMS")
 }
