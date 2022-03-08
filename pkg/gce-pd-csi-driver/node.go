@@ -15,12 +15,10 @@ limitations under the License.
 package gceGCEDriver
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
-
-	"context"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -48,7 +46,8 @@ type GCENodeServer struct {
 
 	// A map storing all volumes with ongoing operations so that additional operations
 	// for that same volume (as defined by VolumeID) return an Aborted error
-	volumeLocks *common.VolumeLocks
+	volumeLocks  *common.VolumeLocks
+	evalSymLinks func(string) (string, error)
 }
 
 var _ csi.NodeServer = &GCENodeServer{}
@@ -302,7 +301,8 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 	}
 
 	// [Edgeless] Part 2.5: Map the device as a crypt device, creating a new LUKS partition if needed
-	devicePathReal, err := filepath.EvalSymlinks(devicePath)
+	// devicePathReal, err := filepath.EvalSymlinks(devicePath)
+	devicePathReal, err := ns.evalSymLinks(devicePath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("could not evaluate device path for device %q: %v", devicePath, err))
 	}

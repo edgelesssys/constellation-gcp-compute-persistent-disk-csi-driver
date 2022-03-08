@@ -139,7 +139,7 @@ func NewIdentityServer(gceDriver *GCEDriver) *GCEIdentityServer {
 	}
 }
 
-func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter, mapper *cryptmapper.CryptMapper) *GCENodeServer {
+func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter, mapper *cryptmapper.CryptMapper, evalSymLinks func(string) (string, error)) *GCENodeServer {
 	return &GCENodeServer{
 		Driver:          gceDriver,
 		Mounter:         mounter,
@@ -148,6 +148,7 @@ func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, devi
 		volumeLocks:     common.NewVolumeLocks(),
 		VolumeStatter:   statter,
 		CryptMapper:     mapper,
+		evalSymLinks:    evalSymLinks,
 	}
 }
 
