@@ -110,6 +110,7 @@ func CreateCloudProvider(ctx context.Context, vendorVersion string, configPath s
 		zone:        zone,
 		zonesCache:  make(map[string]([]string)),
 	}, nil
+
 }
 
 func generateTokenSource(ctx context.Context, configFile *ConfigFile) (oauth2.TokenSource, error) {

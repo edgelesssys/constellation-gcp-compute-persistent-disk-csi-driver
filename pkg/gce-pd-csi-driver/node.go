@@ -72,7 +72,6 @@ func getDefaultFsType() string {
 		return defaultLinuxFsType
 	}
 }
-
 func (ns *GCENodeServer) isVolumePathMounted(path string) bool {
 	notMnt, err := ns.Mounter.Interface.IsLikelyNotMountPoint(path)
 	klog.V(4).Infof("NodePublishVolume check volume path %s is mounted %t: error %v", path, !notMnt, err)
@@ -212,7 +211,7 @@ func (ns *GCENodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePub
 
 func makeFile(path string) error {
 	// Create file
-	newFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o750)
+	newFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0750)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %v", path, err)
 	}
@@ -283,6 +282,7 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 		partition = part
 	}
 	devicePath, err := getDevicePath(ns, volumeID, partition)
+
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Error when getting device path: %v", err))
 	}
@@ -495,6 +495,7 @@ func (ns *GCENodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	_, err = resizer.Resize(devicePath, volumePath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("error when resizing volume %s: %v", volKey.String(), err))
+
 	}
 
 	diskSizeBytes, err := getBlockSizeBytes(devicePath, ns.Mounter)

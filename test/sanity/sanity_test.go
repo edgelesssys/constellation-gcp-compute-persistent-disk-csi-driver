@@ -65,7 +65,7 @@ func TestSanity(t *testing.T) {
 	mounter := mountmanager.NewFakeSafeMounter()
 	deviceUtils := mountmanager.NewFakeDeviceUtils()
 
-	// Initialize GCE Driver
+	//Initialize GCE Driver
 	identityServer := driver.NewIdentityServer(gceDriver)
 	controllerServer := driver.NewControllerServer(gceDriver, cloudProvider)
 	mapper := cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{})
@@ -81,7 +81,7 @@ func TestSanity(t *testing.T) {
 	}
 	cloudProvider.InsertInstance(instance, "test-location", "test-name")
 
-	err = os.MkdirAll(tmpDir, 0o755)
+	err = os.MkdirAll(tmpDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create sanity temp working dir %s: %v", tmpDir, err)
 	}

@@ -31,11 +31,9 @@ import (
 	mountmanager "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/mount-manager"
 )
 
-const (
-	defaultVolumeID    = "project/test001/zones/c1/disks/testDisk"
-	defaultTargetPath  = "/mnt/test"
-	defaultStagingPath = "/staging"
-)
+const defaultVolumeID = "project/test001/zones/c1/disks/testDisk"
+const defaultTargetPath = "/mnt/test"
+const defaultStagingPath = "/staging"
 
 type stubCryptDevice struct{}
 
@@ -151,6 +149,7 @@ func TestNodeGetVolumeStats(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+
 			req := &csi.NodeGetVolumeStatsRequest{
 				VolumeId:   tc.volumeID,
 				VolumePath: tc.volumePath,
@@ -167,6 +166,7 @@ func TestNodeGetVolumeStats(t *testing.T) {
 }
 
 func TestNodeGetVolumeLimits(t *testing.T) {
+
 	gceDriver := getTestGCEDriver(t)
 	ns := gceDriver.ns
 	req := &csi.NodeGetInfoRequest{}

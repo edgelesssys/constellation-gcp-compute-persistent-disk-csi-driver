@@ -94,14 +94,14 @@ func handle() {
 
 	gceDriver := driver.GetGCEDriver()
 
-	// Initialize GCE Driver
+	//Initialize GCE Driver
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Initialize identity server
+	//Initialize identity server
 	identityServer := driver.NewIdentityServer(gceDriver)
 
-	// Initialize requirements for the controller service
+	//Initialize requirements for the controller service
 	var controllerServer *driver.GCEControllerServer
 	if *runControllerService {
 		cloudProvider, err := gce.CreateCloudProvider(ctx, version, *cloudConfigFilePath)
@@ -113,7 +113,7 @@ func handle() {
 		klog.Warningf("controller service is disabled but cloud config given - it has no effect")
 	}
 
-	// Initialize requirements for the node service
+	//Initialize requirements for the node service
 	var nodeServer *driver.GCENodeServer
 	if *runNodeService {
 		mounter, err := mountmanager.NewSafeMounter()
