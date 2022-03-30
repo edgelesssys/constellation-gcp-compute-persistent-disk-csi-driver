@@ -42,9 +42,7 @@ PROJECT=<PROJECT_ID> \
 
 Deploy the driver to the Cluster.
 ```
-GCE_PD_SA_FILE=</directory/for/credentials/cloud-sa.json> \
-    GCE_PD_DRIVER_VERSION=edgeless \
-    ./deploy/kubernetes/deploy-driver.sh
+kubectl apply -k ./deploy/kubernetes/overlays/edgeless
 ```
 
 Create a new storage class for encrypted storage:
@@ -107,7 +105,7 @@ EOF
 
 Remove the driver by running the following:
 ```
-./deploy/kubernetes/delete-driver.sh
+kubectl delete -k ./deploy/kubernetes/overlays/edgeless
 ```
 
 ## Build your own driver

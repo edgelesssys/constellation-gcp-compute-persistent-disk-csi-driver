@@ -138,13 +138,13 @@ spec:
           # Don't change base image without changing pdImagePlaceholder in
           # test/k8s-integration/main.go
           image: gke.gcr.io/gcp-compute-persistent-disk-csi-driver
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           args:
             - "--v=5"
             - "--endpoint=unix:/csi/csi.sock"
           env:
             - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: "/etc/cloud-sa/cloud-sa.json"
+              value: "/etc/cloud-sa/key.json"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -156,4 +156,4 @@ spec:
           emptyDir: {}
         - name: cloud-sa-volume
           secret:
-            secretName: cloud-sa
+            secretName: gcekey
