@@ -4,13 +4,14 @@ cloud.google.com/go
 # cloud.google.com/go/compute v1.5.0
 ## explicit; go 1.15
 cloud.google.com/go/compute/metadata
-# cloud.google.com/go/iam v0.2.0
+# cloud.google.com/go/iam v0.3.0
 ## explicit; go 1.15
 cloud.google.com/go/iam
-# cloud.google.com/go/kms v1.3.0
+# cloud.google.com/go/kms v1.4.0
 ## explicit; go 1.16
 cloud.google.com/go/kms/apiv1
-# github.com/GoogleCloudPlatform/k8s-cloud-provider v0.0.0-20200415212048-7901bc822317
+cloud.google.com/go/kms/internal
+# github.com/GoogleCloudPlatform/k8s-cloud-provider v1.16.1-0.20210702024009-ea6160c1d0e3
 ## explicit; go 1.13
 github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud/meta
 # github.com/Microsoft/go-winio v0.5.2
@@ -32,13 +33,11 @@ github.com/container-storage-interface/spec/lib/go/csi
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/edgelesssys/constellation-coordinator v0.0.0-20220307104949-8630f4fe9e52
-## explicit; go 1.17
-github.com/edgelesssys/constellation-coordinator/coordinator/vpnapi/vpnproto
-# github.com/edgelesssys/constellation-mount-utils v0.0.0-20220307113841-38602e24650b
-## explicit; go 1.17
-github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper
-github.com/edgelesssys/constellation-mount-utils/pkg/kms
+# github.com/edgelesssys/constellation v0.0.0-20220330070459-65584252fe3f
+## explicit; go 1.18
+github.com/edgelesssys/constellation/coordinator/vpnapi/vpnproto
+github.com/edgelesssys/constellation/mount/cryptmapper
+github.com/edgelesssys/constellation/mount/kms
 # github.com/fsnotify/fsnotify v1.4.9
 ## explicit; go 1.13
 github.com/fsnotify/fsnotify
@@ -75,8 +74,8 @@ github.com/google/gofuzz/bytesource
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
-# github.com/googleapis/gax-go/v2 v2.1.1
-## explicit; go 1.11
+# github.com/googleapis/gax-go/v2 v2.2.0
+## explicit; go 1.15
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
@@ -118,7 +117,7 @@ github.com/kubernetes-csi/csi-proxy/client/groups/volume/v1beta1
 ## explicit; go 1.16
 github.com/kubernetes-csi/csi-test/v4/pkg/sanity
 github.com/kubernetes-csi/csi-test/v4/utils
-# github.com/martinjungblut/go-cryptsetup v0.0.0-20220306213448-685e4930d722
+# github.com/martinjungblut/go-cryptsetup v0.0.0-20220317181052-e70d6b615049
 ## explicit; go 1.16
 github.com/martinjungblut/go-cryptsetup
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
@@ -183,8 +182,8 @@ github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.2.0
 ## explicit; go 1.9
 github.com/prometheus/client_model/go
-# github.com/prometheus/common v0.26.0
-## explicit; go 1.11
+# github.com/prometheus/common v0.28.0
+## explicit; go 1.13
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
@@ -218,7 +217,7 @@ go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/propagation
 go.opencensus.io/trace/tracestate
-# golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
+# golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -231,7 +230,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
+# golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
 ## explicit; go 1.11
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -240,7 +239,7 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.0.0-20220224120231-95c6836cb0e7
+# golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
@@ -278,7 +277,7 @@ golang.org/x/time/rate
 ## explicit; go 1.11
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.70.0
+# google.golang.org/api v0.73.0
 ## explicit; go 1.15
 google.golang.org/api/cloudresourcemanager/v1
 google.golang.org/api/compute/v0.alpha
@@ -312,7 +311,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220222213610-43724f9ea8cf
+# google.golang.org/genproto v0.0.0-20220317150908-0efb43f6373e
 ## explicit; go 1.15
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/cloud/kms/v1
@@ -322,7 +321,7 @@ google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/googleapis/type/expr
 google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/grpc v1.44.0
+# google.golang.org/grpc v1.45.0
 ## explicit; go 1.14
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -417,6 +416,8 @@ google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/fieldmaskpb
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
+# gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
+## explicit; go 1.11
 # gopkg.in/gcfg.v1 v1.2.3
 ## explicit
 gopkg.in/gcfg.v1
@@ -638,7 +639,7 @@ k8s.io/client-go/util/homedir
 k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/workqueue
-# k8s.io/component-base v0.22.0 => k8s.io/component-base v0.22.0
+# k8s.io/component-base v0.23.1 => k8s.io/component-base v0.22.0
 ## explicit; go 1.16
 k8s.io/component-base/metrics
 k8s.io/component-base/version
@@ -648,7 +649,7 @@ k8s.io/klog
 # k8s.io/klog/v2 v2.40.1
 ## explicit; go 1.13
 k8s.io/klog/v2
-# k8s.io/kubernetes v1.22.0
+# k8s.io/kubernetes v1.23.5
 ## explicit; go 1.16
 k8s.io/kubernetes/test/e2e/storage/podlogs
 # k8s.io/mount-utils v0.23.3 => k8s.io/mount-utils v0.22.0
@@ -675,7 +676,7 @@ sigs.k8s.io/structured-merge-diff/v4/fieldpath
 sigs.k8s.io/structured-merge-diff/v4/schema
 sigs.k8s.io/structured-merge-diff/v4/typed
 sigs.k8s.io/structured-merge-diff/v4/value
-# sigs.k8s.io/yaml v1.2.0
+# sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
 # k8s.io/api => k8s.io/api v0.22.0
