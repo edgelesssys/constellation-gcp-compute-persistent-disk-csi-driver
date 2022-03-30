@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper"
-	"github.com/edgelesssys/constellation-mount-utils/pkg/kms"
+	"github.com/edgelesssys/constellation/mount/cryptmapper"
+	"github.com/edgelesssys/constellation/mount/kms"
 	"github.com/google/uuid"
 	"github.com/martinjungblut/go-cryptsetup"
 	"google.golang.org/grpc"
@@ -68,7 +68,7 @@ func TestSanity(t *testing.T) {
 	//Initialize GCE Driver
 	identityServer := driver.NewIdentityServer(gceDriver)
 	controllerServer := driver.NewControllerServer(gceDriver, cloudProvider)
-	mapper := cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{})
+	mapper := cryptmapper.New(kms.NewStaticKMS(), &stubCryptDevice{})
 	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), mapper, func(s string) (string, error) { return s, nil })
 	err = gceDriver.SetupGCEDriver(driverName, vendorVersion, extraLabels, identityServer, controllerServer, nodeServer)
 	if err != nil {
@@ -164,7 +164,7 @@ func (c *stubCryptDevice) Free() bool {
 	return true
 }
 
-func (c *stubCryptDevice) Load() error {
+func (c *stubCryptDevice) Load(cryptsetup.DeviceType) error {
 	return nil
 }
 

@@ -25,8 +25,8 @@ import (
 
 	"k8s.io/klog"
 
-	"github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper"
-	cryptKms "github.com/edgelesssys/constellation-mount-utils/pkg/kms"
+	"github.com/edgelesssys/constellation/mount/cryptmapper"
+	cryptKms "github.com/edgelesssys/constellation/mount/kms"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
@@ -37,7 +37,6 @@ import (
 
 var (
 	constellationAddr    = flag.String("constellation-addr", "10.118.0.1:9027", "Address of the Constellation Coordinator's VPN API. Used to request keys (default: 10.118.0.1:9027")
-	masterKey            = flag.String("master-key-id", "", "ID of the master key to use for key derivation. Constellation KMS always uses the cluster's master key.")
 	integrity            = flag.Bool("integrity", false, "Set to enable dm-integrity for mounted volumes (default: false)")
 	cloudConfigFilePath  = flag.String("cloud-config", "", "Path to GCE cloud provider config")
 	endpoint             = flag.String("endpoint", "unix:/tmp/csi.sock", "CSI endpoint")
@@ -130,7 +129,6 @@ func handle() {
 		// [Edgeless] set up Constellation key management
 		mapper := cryptmapper.New(
 			cryptKms.NewConstellationKMS(*constellationAddr),
-			*masterKey,
 			&cryptmapper.CryptDevice{},
 		)
 

@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper"
+	"github.com/edgelesssys/constellation/mount/cryptmapper"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"

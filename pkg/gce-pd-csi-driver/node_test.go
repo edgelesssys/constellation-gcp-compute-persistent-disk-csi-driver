@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/edgelesssys/constellation-mount-utils/pkg/cryptmapper"
-	"github.com/edgelesssys/constellation-mount-utils/pkg/kms"
+	"github.com/edgelesssys/constellation/mount/cryptmapper"
+	"github.com/edgelesssys/constellation/mount/kms"
 	"github.com/martinjungblut/go-cryptsetup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -57,7 +57,7 @@ func (c *stubCryptDevice) Free() bool {
 	return true
 }
 
-func (c *stubCryptDevice) Load() error {
+func (c *stubCryptDevice) Load(cryptsetup.DeviceType) error {
 	return nil
 }
 
@@ -75,7 +75,7 @@ func getTestGCEDriver(t *testing.T) *GCEDriver {
 
 func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, metaService metadataservice.MetadataService) *GCEDriver {
 	gceDriver := GetGCEDriver()
-	nodeServer := NewNodeServer(gceDriver, mounter, deviceUtils, metaService, mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{}), fakeEvalSymlinks)
+	nodeServer := NewNodeServer(gceDriver, mounter, deviceUtils, metaService, mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), &stubCryptDevice{}), fakeEvalSymlinks)
 	err := gceDriver.SetupGCEDriver(driver, "test-vendor", nil, nil, nil, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to setup GCE Driver: %v", err)
@@ -86,7 +86,7 @@ func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, dev
 func getTestBlockingGCEDriver(t *testing.T, readyToExecute chan chan struct{}) *GCEDriver {
 	gceDriver := GetGCEDriver()
 	mounter := mountmanager.NewFakeSafeBlockingMounter(readyToExecute)
-	nodeServer := NewNodeServer(gceDriver, mounter, mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), "", &stubCryptDevice{}), fakeEvalSymlinks)
+	nodeServer := NewNodeServer(gceDriver, mounter, mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), &stubCryptDevice{}), fakeEvalSymlinks)
 	err := gceDriver.SetupGCEDriver(driver, "test-vendor", nil, nil, nil, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to setup GCE Driver: %v", err)
