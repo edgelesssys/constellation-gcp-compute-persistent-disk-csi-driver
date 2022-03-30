@@ -54,8 +54,6 @@ spec:
             - "--v=5"
             - "--endpoint=unix:/csi/csi.sock"
             - "--run-controller-service=false"
-            - "--constellation-addr=10.118.0.1:9027"
-            - "--integrity=false"
           securityContext:
             privileged: true
           volumeMounts:
