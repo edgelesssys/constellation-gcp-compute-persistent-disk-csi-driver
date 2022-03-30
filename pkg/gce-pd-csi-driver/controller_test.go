@@ -63,10 +63,10 @@ var (
 	}
 	testVolumeID   = fmt.Sprintf("projects/%s/zones/%s/disks/%s", project, zone, name)
 	region, _      = common.GetRegionFromZones([]string{zone})
-	testRegionalID = fmt.Sprintf("projects/%s/regions/%s/disks/%s", project, region, name)
-	testSnapshotID = fmt.Sprintf("projects/%s/global/snapshots/%s", project, name)
-	testImageID    = fmt.Sprintf("projects/%s/global/images/%s", project, name)
-	testNodeID     = fmt.Sprintf("projects/%s/zones/%s/instances/%s", project, zone, node)
+	testRegionalID = fmt.Sprintf("%s/regions/%s/disks/%s", project, region, name)
+	testSnapshotID = fmt.Sprintf("%s/global/snapshots/%s", project, name)
+	testImageID    = fmt.Sprintf("%s/global/images/%s", project, name)
+	testNodeID     = fmt.Sprintf("%s/zones/%s/instances/%s", project, zone, node)
 )
 
 func TestCreateSnapshotArguments(t *testing.T) {
@@ -184,7 +184,7 @@ func TestCreateSnapshotArguments(t *testing.T) {
 
 		// Start Test
 		resp, err := gceDriver.cs.CreateSnapshot(context.Background(), tc.req)
-		//check response
+		// check response
 		if err != nil {
 			serverError, ok := status.FromError(err)
 			if !ok {
@@ -212,6 +212,7 @@ func TestCreateSnapshotArguments(t *testing.T) {
 		}
 	}
 }
+
 func TestDeleteSnapshot(t *testing.T) {
 	testCases := []struct {
 		name       string
@@ -250,7 +251,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		gceDriver := initGCEDriver(t, nil)
 
 		_, err := gceDriver.cs.DeleteSnapshot(context.Background(), tc.req)
-		//check response
+		// check response
 		if err != nil {
 			serverError, ok := status.FromError(err)
 			t.Logf("get server error %v", serverError)
@@ -282,7 +283,7 @@ func TestListSnapshotsArguments(t *testing.T) {
 		{
 			name: "valid",
 			req: &csi.ListSnapshotsRequest{
-				SnapshotId: testSnapshotID + "0",
+				SnapshotId: "projects/" + testSnapshotID + "0",
 			},
 			numSnapshots:  3,
 			numImages:     2,
@@ -291,7 +292,7 @@ func TestListSnapshotsArguments(t *testing.T) {
 		{
 			name: "invalid id",
 			req: &csi.ListSnapshotsRequest{
-				SnapshotId: testSnapshotID + "/foo",
+				SnapshotId: "projects/" + testSnapshotID + "/foo",
 			},
 			expectedCount: 0,
 		},
@@ -373,7 +374,7 @@ func TestListSnapshotsArguments(t *testing.T) {
 
 		// Start Test
 		resp, err := gceDriver.cs.ListSnapshots(context.Background(), tc.req)
-		//check response
+		// check response
 		if err != nil {
 			serverError, ok := status.FromError(err)
 			if !ok {
@@ -390,7 +391,7 @@ func TestListSnapshotsArguments(t *testing.T) {
 
 		// Make sure responses match
 		snapshots := resp.GetEntries()
-		//expectsnapshots := expSnapshot.GetEntries()
+		// expectsnapshots := expSnapshot.GetEntries()
 		if (snapshots == nil || len(snapshots) == 0) && tc.numSnapshots == 0 {
 			continue
 		}
@@ -651,7 +652,7 @@ func TestCreateVolumeArguments(t *testing.T) {
 			},
 			expVol: &csi.Volume{
 				CapacityBytes: common.GbToBytes(20),
-				VolumeId:      testRegionalID,
+				VolumeId:      "projects/" + testRegionalID,
 				VolumeContext: nil,
 				AccessibleTopology: []*csi.Topology{
 					{
@@ -699,7 +700,7 @@ func TestCreateVolumeArguments(t *testing.T) {
 			},
 			expVol: &csi.Volume{
 				CapacityBytes: common.GbToBytes(20),
-				VolumeId:      testRegionalID,
+				VolumeId:      "projects/" + testRegionalID,
 				VolumeContext: nil,
 				AccessibleTopology: []*csi.Topology{
 					{
@@ -803,7 +804,7 @@ func TestCreateVolumeArguments(t *testing.T) {
 
 		// Start Test
 		resp, err := gceDriver.cs.CreateVolume(context.Background(), tc.req)
-		//check response
+		// check response
 		if err != nil {
 			serverError, ok := status.FromError(err)
 			if !ok {
@@ -1041,14 +1042,14 @@ func TestCreateVolumeWithVolumeSourceFromSnapshot(t *testing.T) {
 			VolumeContentSource: &csi.VolumeContentSource{
 				Type: &csi.VolumeContentSource_Snapshot{
 					Snapshot: &csi.VolumeContentSource_SnapshotSource{
-						SnapshotId: snapshotID,
+						SnapshotId: "projects/" + snapshotID,
 					},
 				},
 			},
 		}
 
 		resp, err := gceDriver.cs.CreateVolume(context.Background(), req)
-		//check response
+		// check response
 		if err != nil {
 			serverError, ok := status.FromError(err)
 			if !ok {
@@ -1941,7 +1942,7 @@ func TestPickRandAndConsecutive(t *testing.T) {
 				t.Errorf("expected the resulting slice to be length %v, but got %v instead", tc.n, theslice)
 			}
 			// Find where it is in the slice
-			var idx = -1
+			idx := -1
 			for j, elem := range tc.slice {
 				if elem == theslice[0] {
 					idx = j
@@ -2122,7 +2123,7 @@ func TestCreateVolumeDiskReady(t *testing.T) {
 			gceDriver := initGCEDriverWithCloudProvider(t, fcp)
 			// Start Test
 			resp, err := gceDriver.cs.CreateVolume(context.Background(), tc.req)
-			//check response
+			// check response
 			if err != nil {
 				serverError, ok := status.FromError(err)
 				if !ok {
