@@ -61,8 +61,8 @@ var (
 	}
 	testVolumeID   = fmt.Sprintf("projects/%s/zones/%s/disks/%s", project, zone, name)
 	region, _      = common.GetRegionFromZones([]string{zone})
-	testRegionalID = fmt.Sprintf("projects/%s/regions/%s/disks/%s", project, region, name)
-	testSnapshotID = fmt.Sprintf("projects/%s/global/snapshots/%s", project, name)
+	testRegionalID = fmt.Sprintf("%s/regions/%s/disks/%s", project, region, name)
+	testSnapshotID = fmt.Sprintf("%s/global/snapshots/%s", project, name)
 )
 
 func TestCreateSnapshotArguments(t *testing.T) {
@@ -252,14 +252,14 @@ func TestListSnapshotsArguments(t *testing.T) {
 		{
 			name: "valid",
 			req: &csi.ListSnapshotsRequest{
-				SnapshotId: testSnapshotID + "0",
+				SnapshotId: "projects/" + testSnapshotID + "0",
 			},
 			numSnapshots: 1,
 		},
 		{
 			name: "invalid id",
 			req: &csi.ListSnapshotsRequest{
-				SnapshotId: testSnapshotID + "/foo",
+				SnapshotId: "projects/" + testSnapshotID + "/foo",
 			},
 			numSnapshots: 0,
 		},
@@ -299,7 +299,7 @@ func TestListSnapshotsArguments(t *testing.T) {
 
 		// Start Test
 		resp, err := gceDriver.cs.ListSnapshots(context.Background(), tc.req)
-		//check response
+		// check response
 		if err != nil {
 			serverError, ok := status.FromError(err)
 			if !ok {
@@ -582,7 +582,7 @@ func TestCreateVolumeArguments(t *testing.T) {
 			},
 			expVol: &csi.Volume{
 				CapacityBytes: common.GbToBytes(20),
-				VolumeId:      testRegionalID,
+				VolumeId:      "projects/" + testRegionalID,
 				VolumeContext: nil,
 				AccessibleTopology: []*csi.Topology{
 					{
@@ -630,7 +630,7 @@ func TestCreateVolumeArguments(t *testing.T) {
 			},
 			expVol: &csi.Volume{
 				CapacityBytes: common.GbToBytes(20),
-				VolumeId:      testRegionalID,
+				VolumeId:      "projects/" + testRegionalID,
 				VolumeContext: nil,
 				AccessibleTopology: []*csi.Topology{
 					{
@@ -862,7 +862,7 @@ func TestCreateVolumeWithVolumeSource(t *testing.T) {
 			VolumeContentSource: &csi.VolumeContentSource{
 				Type: &csi.VolumeContentSource_Snapshot{
 					Snapshot: &csi.VolumeContentSource_SnapshotSource{
-						SnapshotId: testSnapshotID,
+						SnapshotId: "projects/" + testSnapshotID,
 					},
 				},
 			},
