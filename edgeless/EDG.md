@@ -42,7 +42,7 @@ PROJECT=<PROJECT_ID> \
 
 Deploy the driver to the Cluster.
 ```
-kubectl apply -k ./deploy/kubernetes/overlays/edgeless
+kubectl apply -k ./deploy/kubernetes/overlays/edgeless/v1.0.0
 ```
 
 Create a new storage class for encrypted storage:
@@ -105,7 +105,7 @@ EOF
 
 Remove the driver by running the following:
 ```
-kubectl delete -k ./deploy/kubernetes/overlays/edgeless
+kubectl delete -k ./deploy/kubernetes/overlays/edgeless/v1.0.0
 ```
 
 ## Build your own driver
