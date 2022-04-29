@@ -3,10 +3,9 @@ kind: Kustomization
 namespace:
   kube-system
 resources:
-- ../../base
+- ../../../base
 patchesStrategicMerge:
-- no-node-driver-registrar-probe.yaml
 - no-win-deployment.yaml
 - node-args.yaml
 transformers:
-- ../../images/edgeless
+- ../../../images/edgeless/v1.0.0

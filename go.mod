@@ -32,8 +32,8 @@ require (
 require (
 	cloud.google.com/go/compute v1.5.0
 	cloud.google.com/go/kms v1.4.0
-	github.com/edgelesssys/constellation v0.0.0-20220330070459-65584252fe3f
-	github.com/martinjungblut/go-cryptsetup v0.0.0-20220317181052-e70d6b615049
+	github.com/edgelesssys/constellation v1.0.0
+	github.com/martinjungblut/go-cryptsetup v0.0.0-20220421194528-92e17766b2e7
 )
 
 require (
