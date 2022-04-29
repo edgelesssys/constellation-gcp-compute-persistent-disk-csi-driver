@@ -25,4 +25,3 @@ spec:
   - pathPrefix: "/run/udev"
   - pathPrefix: "/sys"
   - pathPrefix: "/run/cryptsetup"
-
