@@ -42,7 +42,6 @@ type GCENodeServer struct {
 	VolumeStatter   mountmanager.Statter
 	MetadataService metadataservice.MetadataService
 	CryptMapper     *cryptmapper.CryptMapper
-	Integrity       bool
 
 	// A map storing all volumes with ongoing operations so that additional operations
 	// for that same volume (as defined by VolumeID) return an Aborted error
@@ -300,27 +299,29 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 		return nil, status.Error(codes.Internal, fmt.Sprintf("mkdir failed on disk %s (%v)", stagingTargetPath, err))
 	}
 
-	// [Edgeless] Part 2.5: Map the device as a crypt device, creating a new LUKS partition if needed
-	// devicePathReal, err := filepath.EvalSymlinks(devicePath)
-	devicePathReal, err := ns.evalSymLinks(devicePath)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("could not evaluate device path for device %q: %v", devicePath, err))
-	}
-	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePathReal, volumeKey.Name, ns.Integrity)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume failed on volume %v to %s, open crypt device failed (%v)", devicePath, stagingTargetPath, err))
-	}
-
-	// Part 3: Mount device to stagingTargetPath
+	// Get FS type
 	fstype := getDefaultFsType()
-
 	options := []string{}
 	if mnt := volumeCapability.GetMount(); mnt != nil {
 		if mnt.FsType != "" {
 			fstype = mnt.FsType
 		}
 		options = collectMountOptions(fstype, mnt.MountFlags)
-	} else if blk := volumeCapability.GetBlock(); blk != nil {
+	}
+
+	// [Edgeless] Part 2.5: Map the device as a crypt device, creating a new LUKS partition if needed
+	fstype, integrity := cryptmapper.IsIntegrityFS(fstype)
+	devicePathReal, err := ns.evalSymLinks(devicePath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("could not evaluate device path for device %q: %v", devicePath, err))
+	}
+	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePathReal, volumeKey.Name, integrity)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume failed on volume %v to %s, open crypt device failed (%v)", devicePath, stagingTargetPath, err))
+	}
+
+	// Part 3: Mount device to stagingTargetPath
+	if blk := volumeCapability.GetBlock(); blk != nil {
 		// Noop for Block NodeStageVolume
 		klog.V(4).Infof("NodeStageVolume succeeded on %v to %s, capability is block so this is a no-op", volumeID, stagingTargetPath)
 		return &csi.NodeStageVolumeResponse{}, nil
