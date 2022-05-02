@@ -54,6 +54,29 @@ spec:
 EOF
 ```
 
+## Enable integrity protection
+
+By default the CSI driver will transparently encrypt all disks staged on the node.
+Optionally, you can configure the driver to also apply integrity protection.
+
+Please note that enabling integrity protection requires wiping the disk before use.
+For small disks (10GB-20GB) this may only take a minute or two, while larger disks can take up to an hour or more, potentially blocking your Pods from starting for that time.
+If you intend to provision large amounts of storage and Pod creation speed is important, we recommend to not use this option.
+
+To enable integrity protection, create a storage class with an explicit file system type request and the integrity suffix.
+The following is a storage class for integrity protected `ext4` formatted disks:
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: integrity-protected
+provisioner: gcp.csi.confidential.cloud
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: pd-standard
+  csi.storage.k8s.io/fstype: ext4-integrity
+```
+
 ## [Optional] Mark the storage class as default
 
 The default storage class is responsible for all persistent volume claims which don't explicitly request `storageClassName`.
