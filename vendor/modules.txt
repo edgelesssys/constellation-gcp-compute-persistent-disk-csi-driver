@@ -33,7 +33,7 @@ github.com/container-storage-interface/spec/lib/go/csi
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/edgelesssys/constellation v1.0.0
+# github.com/edgelesssys/constellation v1.0.1-0.20220503064026-66ae725262df
 ## explicit; go 1.18
 github.com/edgelesssys/constellation/coordinator/vpnapi/vpnproto
 github.com/edgelesssys/constellation/mount/cryptmapper
