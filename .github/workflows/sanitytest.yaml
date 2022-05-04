@@ -1,4 +1,4 @@
-name: Linux Unit Test
+name: Linux Sanity Test
 on:
   workflow_dispatch:
   push:
@@ -25,4 +25,4 @@ jobs:
 
     - name: Build Test
       run: |
-        go test -race -count=3 ./pkg/...
+        go test -v -timeout 30s test/sanity/sanity_test.go
