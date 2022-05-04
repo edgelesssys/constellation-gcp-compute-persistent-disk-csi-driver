@@ -48,7 +48,7 @@ const (
 	GCEComputeBetaAPIEndpoint  = "https://www.googleapis.com/compute/beta/"
 	GCEComputeAlphaAPIEndpoint = "https://www.googleapis.com/compute/alpha/"
 
-	replicaZoneURITemplateSingleZone = "%s/zones/%s" // {gce.projectID}/zones/{disk.Zone}
+	replicaZoneURITemplateSingleZone = "projects/%s/zones/%s" // {gce.projectID}/zones/{disk.Zone}
 )
 
 type CloudProvider struct {
