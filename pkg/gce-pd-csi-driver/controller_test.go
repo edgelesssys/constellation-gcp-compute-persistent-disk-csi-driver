@@ -61,10 +61,10 @@ var (
 	}
 	testVolumeID   = fmt.Sprintf("projects/%s/zones/%s/disks/%s", project, zone, name)
 	region, _      = common.GetRegionFromZones([]string{zone})
-	testRegionalID = fmt.Sprintf("%s/regions/%s/disks/%s", project, region, name)
-	testSnapshotID = fmt.Sprintf("%s/global/snapshots/%s", project, name)
-	testImageID    = fmt.Sprintf("%s/global/images/%s", project, name)
-	testNodeID     = fmt.Sprintf("%s/zones/%s/instances/%s", project, zone, node)
+	testRegionalID = fmt.Sprintf("projects/%s/regions/%s/disks/%s", project, region, name)
+	testSnapshotID = fmt.Sprintf("projects/%s/global/snapshots/%s", project, name)
+	testImageID    = fmt.Sprintf("projects/%s/global/images/%s", project, name)
+	testNodeID     = fmt.Sprintf("projects/%s/zones/%s/instances/%s", project, zone, node)
 )
 
 func TestCreateSnapshotArguments(t *testing.T) {
@@ -281,7 +281,7 @@ func TestListSnapshotsArguments(t *testing.T) {
 		{
 			name: "valid",
 			req: &csi.ListSnapshotsRequest{
-				SnapshotId: "projects/" + testSnapshotID + "0",
+				SnapshotId: testSnapshotID + "0",
 			},
 			numSnapshots:  3,
 			numImages:     2,
@@ -290,7 +290,7 @@ func TestListSnapshotsArguments(t *testing.T) {
 		{
 			name: "invalid id",
 			req: &csi.ListSnapshotsRequest{
-				SnapshotId: "projects/" + testSnapshotID + "/foo",
+				SnapshotId: testSnapshotID + "/foo",
 			},
 			expectedCount: 0,
 		},
@@ -650,7 +650,7 @@ func TestCreateVolumeArguments(t *testing.T) {
 			},
 			expVol: &csi.Volume{
 				CapacityBytes: common.GbToBytes(20),
-				VolumeId:      "projects/" + testRegionalID,
+				VolumeId:      testRegionalID,
 				VolumeContext: nil,
 				AccessibleTopology: []*csi.Topology{
 					{
@@ -698,7 +698,7 @@ func TestCreateVolumeArguments(t *testing.T) {
 			},
 			expVol: &csi.Volume{
 				CapacityBytes: common.GbToBytes(20),
-				VolumeId:      "projects/" + testRegionalID,
+				VolumeId:      testRegionalID,
 				VolumeContext: nil,
 				AccessibleTopology: []*csi.Topology{
 					{
@@ -969,7 +969,7 @@ func TestCreateVolumeWithVolumeSourceFromSnapshot(t *testing.T) {
 			VolumeContentSource: &csi.VolumeContentSource{
 				Type: &csi.VolumeContentSource_Snapshot{
 					Snapshot: &csi.VolumeContentSource_SnapshotSource{
-						SnapshotId: "projects/" + snapshotID,
+						SnapshotId: snapshotID,
 					},
 				},
 			},
