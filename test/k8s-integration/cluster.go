@@ -13,7 +13,7 @@ import (
 	apimachineryversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 func gkeLocationArgs(gceZone, gceRegion string) (locationArg, locationVal string, err error) {
