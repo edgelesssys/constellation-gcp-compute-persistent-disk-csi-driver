@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/gomega"
 	computealpha "google.golang.org/api/compute/v0.alpha"
 	compute "google.golang.org/api/compute/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	testutils "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/test/e2e/utils"
 	remote "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/test/remote"
 )

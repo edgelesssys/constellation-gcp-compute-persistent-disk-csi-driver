@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
@@ -328,7 +328,6 @@ func (gceCS *GCEControllerServer) CreateVolume(ctx context.Context, req *csi.Cre
 
 	klog.V(4).Infof("CreateVolume succeeded for disk %v", volKey)
 	return generateCreateVolumeResponse(disk, zones), nil
-
 }
 
 func (gceCS *GCEControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
@@ -421,7 +420,6 @@ func (gceCS *GCEControllerServer) validateControllerPublishVolumeRequest(ctx con
 
 func (gceCS *GCEControllerServer) executeControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	project, volKey, err := gceCS.validateControllerPublishVolumeRequest(ctx, req)
-
 	if err != nil {
 		return nil, err
 	}
@@ -549,7 +547,6 @@ func (gceCS *GCEControllerServer) validateControllerUnpublishVolumeRequest(ctx c
 
 func (gceCS *GCEControllerServer) executeControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	project, volKey, err := gceCS.validateControllerUnpublishVolumeRequest(ctx, req)
-
 	if err != nil {
 		return nil, err
 	}
@@ -937,6 +934,7 @@ func parseTimestamp(creationTimestamp string) (*timestamp.Timestamp, error) {
 	}
 	return timestamp, nil
 }
+
 func isImageReady(status string) (bool, error) {
 	// Possible status:
 	//   "DELETING"
@@ -1194,7 +1192,7 @@ func (gceCS *GCEControllerServer) getSnapshotByID(ctx context.Context, snapshotI
 		entries = []*csi.ListSnapshotsResponse_Entry{e}
 	}
 
-	//entries[0] = entry
+	// entries[0] = entry
 	listSnapshotResp := &csi.ListSnapshotsResponse{
 		Entries: entries,
 	}

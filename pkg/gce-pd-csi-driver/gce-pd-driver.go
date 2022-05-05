@@ -22,7 +22,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 	common "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
@@ -165,7 +165,7 @@ func NewControllerServer(gceDriver *GCEDriver, cloudProvider gce.GCECompute) *GC
 
 func (gceDriver *GCEDriver) Run(endpoint string) {
 	klog.V(4).Infof("Driver: %v", gceDriver.name)
-	//Start the nonblocking GRPC
+	// Start the nonblocking GRPC
 	s := NewNonBlockingGRPCServer()
 	// TODO(#34): Only start specific servers based on a flag.
 	// In the future have this only run specific combinations of servers depending on which version this is.
