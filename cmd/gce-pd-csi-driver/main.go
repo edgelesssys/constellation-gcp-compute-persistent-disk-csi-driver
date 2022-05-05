@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/edgelesssys/constellation/mount/cryptmapper"
 	cryptKms "github.com/edgelesssys/constellation/mount/kms"
