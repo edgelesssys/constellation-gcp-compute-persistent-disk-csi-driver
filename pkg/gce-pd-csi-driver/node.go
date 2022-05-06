@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"google.golang.org/grpc/codes"
@@ -150,14 +151,14 @@ func (ns *GCENodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePub
 	} else if blk := volumeCapability.GetBlock(); blk != nil {
 		klog.V(4).Infof("NodePublishVolume with block volume mode")
 
-		partition := ""
-		if part, ok := req.GetVolumeContext()[common.VolumeAttributePartition]; ok {
-			partition = part
-		}
-
-		sourcePath, err = getDevicePath(ns, volumeID, partition)
+		// [Edgeless] use the mapped device created by NodeStageVolume
+		_, volumeKey, err := common.VolumeIDToKey(volumeID)
 		if err != nil {
-			return nil, status.Error(codes.Internal, fmt.Sprintf("Error when getting device path: %v", err))
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("NodePublishVolume Volume ID is invalid: %v", err))
+		}
+		sourcePath, err = ns.evalSymLinks(filepath.Join("/dev/mapper", volumeKey.Name))
+		if err != nil {
+			return nil, status.Error(codes.Internal, fmt.Sprintf("NodePublishVolume can not evaluate source path: %v", err))
 		}
 
 		// Expose block volume as file at target path
