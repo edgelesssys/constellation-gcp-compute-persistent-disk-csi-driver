@@ -21,7 +21,7 @@ kubectl apply -k ./deploy/kubernetes/overlays/edgeless/v1.0.0
 
 Wait for the driver setup to finish:
 ```shell
-kubectl wait -n kube-system csi-gce-pd-controller --for condition=available 
+kubectl wait -n kube-system csi-gce-pd-controller --for condition=available
 ```
 
 Proceed to [use](use.md) to learn how to create a storage class for provisioning encrypted storage to your workloads.
