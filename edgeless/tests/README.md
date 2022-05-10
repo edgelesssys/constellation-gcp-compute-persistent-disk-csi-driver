@@ -20,12 +20,6 @@ For an overview on how to run tests read the [Kubernetes blog post](https://kube
     kubectl wait -n kube-system csi-gce-pd-controller --for condition=available
     ```
 
-1. Deploy a storage class to test against
-
-    ```shell
-    kubectl apply -f edgeless/test/storageclass.yaml
-    ```
-
 1. Run the tests
 
     ```shell
