@@ -77,6 +77,8 @@ parameters:
   csi.storage.k8s.io/fstype: ext4-integrity
 ```
 
+Please note that [volume expansion](https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/) is not supported for integrity-protected disks.
+
 ## [Optional] Mark the storage class as default
 
 The default storage class is responsible for all persistent volume claims which don't explicitly request `storageClassName`.

@@ -10,4 +10,6 @@ DriverInfo:
     block: true
     exec: true
     nodeExpansion: true
+    controllerExpansion: true
+    onlineExpansion: true
     topology: true
