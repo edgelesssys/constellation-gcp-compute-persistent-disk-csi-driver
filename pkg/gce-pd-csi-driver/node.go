@@ -73,6 +73,7 @@ func getDefaultFsType() string {
 		return defaultLinuxFsType
 	}
 }
+
 func (ns *GCENodeServer) isVolumePathMounted(path string) bool {
 	notMnt, err := ns.Mounter.Interface.IsLikelyNotMountPoint(path)
 	klog.V(4).Infof("NodePublishVolume check volume path %s is mounted %t: error %v", path, !notMnt, err)
@@ -212,7 +213,7 @@ func (ns *GCENodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePub
 
 func makeFile(path string) error {
 	// Create file
-	newFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0750)
+	newFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o750)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %v", path, err)
 	}
@@ -283,7 +284,6 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 		partition = part
 	}
 	devicePath, err := getDevicePath(ns, volumeID, partition)
-
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Error when getting device path: %v", err))
 	}
@@ -484,6 +484,7 @@ func (ns *GCENodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("capacity range is invalid: %v", err))
 	}
+	reqBytes = reqBytes - cryptmapper.LUKSHeaderSize // LUKS2 header is 16MiB, subtract from request size to get expected value
 
 	volumePath := req.GetVolumePath()
 	if len(volumePath) == 0 {
@@ -495,23 +496,30 @@ func (ns *GCENodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("volume ID is invalid: %v", err))
 	}
 
-	devicePath, err := getDevicePath(ns, volumeID, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("error when getting device path for %s: %v", volumeID, err))
-	}
-
 	volumeCapability := req.GetVolumeCapability()
 	if volumeCapability != nil {
 		// VolumeCapability is optional, if specified, validate it
 		if err := validateVolumeCapability(volumeCapability); err != nil {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("VolumeCapability is invalid: %v", err))
 		}
+	}
 
-		if blk := volumeCapability.GetBlock(); blk != nil {
-			// Noop for Block NodeExpandVolume
-			klog.V(4).Infof("NodeExpandVolume succeeded on %v to %s, capability is block so this is a no-op", volumeID, volumePath)
-			return &csi.NodeExpandVolumeResponse{}, nil
+	if mnt := volumeCapability.GetMount(); mnt != nil {
+		if _, ok := cryptmapper.IsIntegrityFS(mnt.FsType); ok {
+			klog.Error("Integrity protected devices can not be resized")
+			return nil, status.Error(codes.InvalidArgument, "integrity protected devices can not be resized")
 		}
+	}
+
+	devicePath, err := ns.CryptMapper.ResizeCryptDevice(ctx, volKey.Name)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("resizing crypt device: %s", err))
+	}
+
+	if blk := volumeCapability.GetBlock(); blk != nil {
+		// Noop for Block NodeExpandVolume
+		klog.V(4).Infof("NodeExpandVolume succeeded on %v to %s, capability is block so this is a no-op", volumeID, volumePath)
+		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 
 	// TODO(#328): Use requested size in resize if provided
@@ -519,7 +527,6 @@ func (ns *GCENodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	_, err = resizer.Resize(devicePath, volumePath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("error when resizing volume %s: %v", volKey.String(), err))
-
 	}
 
 	diskSizeBytes, err := getBlockSizeBytes(devicePath, ns.Mounter)
