@@ -148,7 +148,15 @@ func (c *stubCryptDevice) Init(devicePath string) error {
 	return nil
 }
 
+func (c *stubCryptDevice) InitByName(string) error {
+	return nil
+}
+
 func (c *stubCryptDevice) ActivateByVolumeKey(deviceName, volumeKey string, volumeKeySize, flags int) error {
+	return nil
+}
+
+func (c *stubCryptDevice) ActivateByPassphrase(string, int, string, int) error {
 	return nil
 }
 
@@ -168,6 +176,14 @@ func (c *stubCryptDevice) Load(cryptsetup.DeviceType) error {
 	return nil
 }
 
+func (c *stubCryptDevice) KeyslotAddByVolumeKey(int, string, string) error {
+	return nil
+}
+
 func (c *stubCryptDevice) Wipe(devicePath string, pattern int, offset, length uint64, wipeBlockSize int, flags int, progress func(size, offset uint64) int) error {
+	return nil
+}
+
+func (c *stubCryptDevice) Resize(string, uint64) error {
 	return nil
 }
