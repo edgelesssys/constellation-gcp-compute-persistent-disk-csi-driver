@@ -176,6 +176,10 @@ func (c *stubCryptDevice) Load(cryptsetup.DeviceType) error {
 	return nil
 }
 
+func (c *stubCryptDevice) GetDeviceName() string {
+	return ""
+}
+
 func (c *stubCryptDevice) KeyslotAddByVolumeKey(int, string, string) error {
 	return nil
 }
