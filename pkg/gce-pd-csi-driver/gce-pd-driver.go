@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/edgelesssys/constellation/mount/cryptmapper"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/util/flowcontrol"
@@ -139,7 +138,7 @@ func NewIdentityServer(gceDriver *GCEDriver) *GCEIdentityServer {
 	}
 }
 
-func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter, mapper *cryptmapper.CryptMapper, evalSymLinks func(string) (string, error)) *GCENodeServer {
+func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, meta metadataservice.MetadataService, statter mountmanager.Statter, mapper cryptMapper, evalSymLinks func(string) (string, error)) *GCENodeServer {
 	return &GCENodeServer{
 		Driver:          gceDriver,
 		Mounter:         mounter,

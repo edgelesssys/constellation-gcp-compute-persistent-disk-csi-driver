@@ -21,9 +21,6 @@ import (
 	"testing"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/edgelesssys/constellation/mount/cryptmapper"
-	"github.com/edgelesssys/constellation/mount/kms"
-	"github.com/martinjungblut/go-cryptsetup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/mount-utils"
@@ -35,54 +32,24 @@ const defaultVolumeID = "project/test001/zones/c1/disks/testDisk"
 const defaultTargetPath = "/mnt/test"
 const defaultStagingPath = "/staging"
 
-type stubCryptDevice struct{}
+type fakeCryptMapper struct {
+	deviceName string
+}
 
-func (c *stubCryptDevice) Init(devicePath string) error {
+func (s *fakeCryptMapper) CloseCryptDevice(volumeID string) error {
 	return nil
 }
 
-func (c *stubCryptDevice) InitByName(string) error {
-	return nil
+func (s *fakeCryptMapper) OpenCryptDevice(ctx context.Context, source, volumeID string, integrity bool) (string, error) {
+	return "/dev/mapper/" + volumeID, nil
 }
 
-func (c *stubCryptDevice) ActivateByVolumeKey(deviceName, volumeKey string, volumeKeySize, flags int) error {
-	return nil
+func (s *fakeCryptMapper) ResizeCryptDevice(ctx context.Context, volumeID string) (string, error) {
+	return "/dev/mapper/" + volumeID, nil
 }
 
-func (c *stubCryptDevice) ActivateByPassphrase(string, int, string, int) error {
-	return nil
-}
-
-func (c *stubCryptDevice) Deactivate(deviceName string) error {
-	return nil
-}
-
-func (c *stubCryptDevice) Format(deviceType cryptsetup.DeviceType, genericParams cryptsetup.GenericParams) error {
-	return nil
-}
-
-func (c *stubCryptDevice) Free() bool {
-	return true
-}
-
-func (c *stubCryptDevice) Load(cryptsetup.DeviceType) error {
-	return nil
-}
-
-func (c *stubCryptDevice) GetDeviceName() string {
-	return ""
-}
-
-func (c *stubCryptDevice) KeyslotAddByVolumeKey(int, string, string) error {
-	return nil
-}
-
-func (c *stubCryptDevice) Wipe(devicePath string, pattern int, offset, length uint64, wipeBlockSize int, flags int, progress func(size, offset uint64) int) error {
-	return nil
-}
-
-func (c *stubCryptDevice) Resize(string, uint64) error {
-	return nil
+func (s *fakeCryptMapper) GetDevicePath(volumeID string) (string, error) {
+	return s.deviceName, nil
 }
 
 func fakeEvalSymlinks(path string) (string, error) {
@@ -95,7 +62,7 @@ func getTestGCEDriver(t *testing.T) *GCEDriver {
 
 func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, metaService metadataservice.MetadataService) *GCEDriver {
 	gceDriver := GetGCEDriver()
-	nodeServer := NewNodeServer(gceDriver, mounter, deviceUtils, metaService, mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), &stubCryptDevice{}), fakeEvalSymlinks)
+	nodeServer := NewNodeServer(gceDriver, mounter, deviceUtils, metaService, mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{}, fakeEvalSymlinks)
 	err := gceDriver.SetupGCEDriver(driver, "test-vendor", nil, nil, nil, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to setup GCE Driver: %v", err)
@@ -106,7 +73,7 @@ func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, dev
 func getTestBlockingGCEDriver(t *testing.T, readyToExecute chan chan struct{}) *GCEDriver {
 	gceDriver := GetGCEDriver()
 	mounter := mountmanager.NewFakeSafeBlockingMounter(readyToExecute)
-	nodeServer := NewNodeServer(gceDriver, mounter, mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), cryptmapper.New(kms.NewStaticKMS(), &stubCryptDevice{}), fakeEvalSymlinks)
+	nodeServer := NewNodeServer(gceDriver, mounter, mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{}, fakeEvalSymlinks)
 	err := gceDriver.SetupGCEDriver(driver, "test-vendor", nil, nil, nil, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to setup GCE Driver: %v", err)
