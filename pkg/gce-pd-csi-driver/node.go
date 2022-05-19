@@ -36,13 +36,20 @@ import (
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/resizefs"
 )
 
+type cryptMapper interface {
+	CloseCryptDevice(volumeID string) error
+	OpenCryptDevice(ctx context.Context, source, volumeID string, integrity bool) (string, error)
+	ResizeCryptDevice(ctx context.Context, volumeID string) (string, error)
+	GetDevicePath(volumeID string) (string, error)
+}
+
 type GCENodeServer struct {
 	Driver          *GCEDriver
 	Mounter         *mount.SafeFormatAndMount
 	DeviceUtils     mountmanager.DeviceUtils
 	VolumeStatter   mountmanager.Statter
 	MetadataService metadataservice.MetadataService
-	CryptMapper     *cryptmapper.CryptMapper
+	CryptMapper     cryptMapper
 
 	// A map storing all volumes with ongoing operations so that additional operations
 	// for that same volume (as defined by VolumeID) return an Aborted error
