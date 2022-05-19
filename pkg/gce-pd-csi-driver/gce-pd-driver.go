@@ -57,7 +57,7 @@ func (gceDriver *GCEDriver) SetupGCEDriver(name, vendorVersion string, extraVolu
 	vcam := []csi.VolumeCapability_AccessMode_Mode{
 		csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
-		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+		csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
 	}
 	gceDriver.AddVolumeCapabilityAccessModes(vcam)
 	csc := []csi.ControllerServiceCapability_RPC_Type{
