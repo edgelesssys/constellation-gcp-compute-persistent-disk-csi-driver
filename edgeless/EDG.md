@@ -3,7 +3,8 @@
 ## Required permissions
 
 Permissions required by the service account:
-```
+
+```text
 compute.instances.get
 compute.instances.attachDisk
 compute.instances.detachDisk
@@ -12,7 +13,8 @@ roles/iam.serviceAccountUser
 ```
 
 Permissions required to create a service account with the desired permissions:
-```
+
+```text
 resourcemanager.projects.getIamPolicy
 resourcemanager.projects.setIamPolicy
 iam.serviceAccounts.create
@@ -20,7 +22,8 @@ iam.serviceAccounts.delete
 ```
 
 Permissions required to run the setup script:
-```
+
+```text
 iam.serviceAccounts.list
 iam.serviceAccountKeys.create
 iam.roles.create
@@ -32,6 +35,7 @@ iam.roles.update
 
 A service account is required to use the storage driver.
 If no service account exists the script `./deploy/setup-project.sh` can be used to create the service account.
+
 ```shell
 PROJECT=<PROJECT_ID> \
     GCE_PD_SA_NAME=<SERVICE_ACCOUNT_NAME> \
@@ -41,7 +45,8 @@ PROJECT=<PROJECT_ID> \
 ```
 
 Deploy the driver to the Cluster.
-```
+
+```shell
 kubectl apply -k ./deploy/kubernetes/overlays/edgeless/v1.0.0
 ```
 
@@ -104,13 +109,15 @@ EOF
 ## Cleanup
 
 Remove the driver by running the following:
-```
+
+```shell
 kubectl delete -k ./deploy/kubernetes/overlays/edgeless/v1.0.0
 ```
 
 ## Build your own driver
 
 Build and push container:
+
 ```shell
 GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/encrypted-gcp-csi-driver \
   GCE_PD_CSI_STAGING_VERSION=test \
@@ -118,6 +125,7 @@ GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/encrypted-gcp-csi-driver \
 ```
 
 Create a pull secret for the storage driver (only necessary if pulling from a private repository):
+
 ```shell
 kubectl create namespace constellation-csi-gcp
 kubectl create secret generic regcred \
@@ -127,7 +135,8 @@ kubectl create secret generic regcred \
 ```
 
 Replace `gke.gcr.io/gcp-compute-persistent-disk-csi-driver` in `deploy/images/edgeless/image.yaml` with your own image and tag.
-You should now be able to deploy our version of the storage driver: 
+You should now be able to deploy our version of the storage driver:
+
 ```shell
 GCE_PD_SA_FILE=</directory/for/credentials/cloud-sa.json> \
     GCE_PD_DRIVER_VERSION=stable-master \
