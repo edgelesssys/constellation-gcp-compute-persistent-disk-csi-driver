@@ -1,9 +1,9 @@
 # Use
 
-
 ## Create a new storage class
 
 The following will create a storage class for the CSI driver, provisioning storage of type `pd-standard` when requested.
+
 ```shell
 cat <<EOF | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
@@ -21,6 +21,7 @@ EOF
 
 Now you can create persistent volume claims requesting storage over your newly created storage class.
 The following creates a persistent volume claim using the `encrypted-storage` class, and a Pod mounting said storage into a container:
+
 ```shell
 cat <<EOF | kubectl apply -f -
 kind: PersistentVolumeClaim
@@ -65,6 +66,7 @@ If you intend to provision large amounts of storage and Pod creation speed is im
 
 To enable integrity protection, create a storage class with an explicit file system type request and the integrity suffix.
 The following is a storage class for integrity protected `ext4` formatted disks:
+
 ```yaml
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -90,34 +92,37 @@ The default storage class is responsible for all persistent volume claims which 
     ```
 
     The output is similar to this:
+
     ```shell
     NAME                   PROVISIONER                     AGE
     unencrypted (default)  pd.csi.storage.gke.io           1d
     encrypted-storage      gcp.csi.confidential.cloud      1d
     ```
-    
+
     The default storage class is marked by `(default)`.
 
-1. Mark old default storage class as non default
+2. Mark old default storage class as non default
 
     If you previously used another storage class as the default, you will have to remove that annotation:
+
     ```shell
     kubectl patch storageclass <name-of-old-default> -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
     ```
 
-2. Mark new class as the default
+3. Mark new class as the default
 
     ```shell
     kubectl patch storageclass encrypted-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
     ```
 
-3. Verify that your chosen storage class is default:
+4. Verify that your chosen storage class is default:
 
     ```shell
     kubectl get storageclass
     ```
 
     The output is similar to this:
+
     ```shell
     NAME                         PROVISIONER                     AGE
     unencrypted                  pd.csi.storage.gke.io           1d

@@ -3,6 +3,7 @@
 ## Prerequisites
 
 Create a docker-registry secret to configure pull access for the driver:
+
 ```shell
 kubectl create secret docker-registry regcred \
     --docker-server=DOCKER_REGISTRY_SERVER \
@@ -15,11 +16,13 @@ kubectl create secret docker-registry regcred \
 ## Installation
 
 Install the driver:
+
 ```shell
-kubectl apply -k ./deploy/kubernetes/overlays/edgeless/v1.0.0
+kubectl apply -k ./deploy/kubernetes/overlays/edgeless/v1.3.0
 ```
 
 Wait for the driver setup to finish:
+
 ```shell
 kubectl wait -n kube-system deployments csi-gce-pd-controller --for condition=available
 ```
@@ -29,6 +32,7 @@ Proceed to [use](use.md) to learn how to create a storage class for provisioning
 ## Clean up
 
 Remove the driver from your Constellation by deleting the namespace:
+
 ```shell
-kubectl delete -k ./deploy/kubernetes/overlays/edgeless/v1.0.0
+kubectl delete -k ./deploy/kubernetes/overlays/edgeless/v1.3.0
 ```
