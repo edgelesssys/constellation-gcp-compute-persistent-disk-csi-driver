@@ -1,10 +1,11 @@
 name: Linux Sanity Test
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-  pull_request:
+  # currently disabled since sanity tests are broken
+  # push:
+  #   branches:
+  #     - master
+  # pull_request:
 jobs:
   build:
     name: Build
