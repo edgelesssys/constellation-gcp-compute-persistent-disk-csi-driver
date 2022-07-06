@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	constellationAddr    = flag.String("constellation-addr", "10.118.0.1:9027", "Address of the Constellation Coordinator's VPN API. Used to request keys (default: 10.118.0.1:9027")
+	constellationAddr    = flag.String("kms-addr", "kms.kube-system:9000", "Address of the Constellation Coordinator's VPN API. Used to request keys (default: kms.kube-system:9000")
 	cloudConfigFilePath  = flag.String("cloud-config", "", "Path to GCE cloud provider config")
 	endpoint             = flag.String("endpoint", "unix:/tmp/csi.sock", "CSI endpoint")
 	runControllerService = flag.Bool("run-controller-service", true, "If set to false then the CSI driver does not activate its controller service (default: true)")
