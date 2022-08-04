@@ -8,7 +8,7 @@
 # which are in Kubernetes version 1.10.5+
 
 # Args:
-# GCE_PD_SA_FILE: File the service account key has been saved to (generated
+# GCE_PD_SA_DIR: Directory the service account key has been saved in (generated
 #   by setup-project.sh). Ignored if GCE_PD_DRIVER_VERSION == noauth.
 # GCE_PD_DRIVER_VERSION: The kustomize overlay to deploy. See
 # `deploy/kubernetes/overlays` for your choices.
@@ -17,9 +17,9 @@ set -o nounset
 set -o errexit
 set -x
 
-readonly NAMESPACE="${GCE_PD_DRIVER_NAMESPACE:-constellation-csi-gcp}"
-readonly DEPLOY_VERSION="${GCE_PD_DRIVER_VERSION:-edgeless}"
-readonly PKGDIR="$(dirname "$(readlink -f "$0")")/../.."
+readonly NAMESPACE="${GCE_PD_DRIVER_NAMESPACE:-gce-pd-csi-driver}"
+readonly DEPLOY_VERSION="${GCE_PD_DRIVER_VERSION:-stable-master}"
+readonly PKGDIR="${GOPATH}/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver"
 source "${PKGDIR}/deploy/common.sh"
 
 print_usage()
@@ -45,15 +45,15 @@ while [ -n "${1-}" ]; do
 done
 
 if [[ ! "${DEPLOY_VERSION}" == *noauth* ]]; then
-  ensure_var GCE_PD_SA_FILE
+  ensure_var GCE_PD_SA_DIR
 fi
 
 function check_service_account()
 {
 	# Using bash magic to parse JSON for IAM
 	# Grepping for a line with client email returning anything quoted after the colon
-	readonly IAM_NAME=$(grep -Po '"client_email": *\K"[^"]*"' "${GCE_PD_SA_FILE}" | tr -d '"')
-	readonly PROJECT=$(grep -Po '"project_id": *\K"[^"]*"' "${GCE_PD_SA_FILE}" | tr -d '"')
+	readonly IAM_NAME=$(grep -Po '"client_email": *\K"[^"]*"' "${GCE_PD_SA_DIR}/cloud-sa.json" | tr -d '"')
+	readonly PROJECT=$(grep -Po '"project_id": *\K"[^"]*"' "${GCE_PD_SA_DIR}/cloud-sa.json" | tr -d '"')
 	readonly GOTTEN_BIND_ROLES=$(gcloud projects get-iam-policy "${PROJECT}" --flatten="bindings[].members" --format='table(bindings.role)' --filter="bindings.members:${IAM_NAME}")
 	readonly BIND_ROLES=$(get_needed_roles)
 	MISSING_ROLES=false
@@ -86,7 +86,7 @@ fi
 if [[ ! "${DEPLOY_VERSION}" == *noauth* ]]; then
   if ! ${KUBECTL} get secret cloud-sa -v="${VERBOSITY}" -n "${NAMESPACE}";
   then
-    ${KUBECTL} create secret generic cloud-sa -v="${VERBOSITY}" --from-file="${GCE_PD_SA_FILE}" -n "${NAMESPACE}"
+    ${KUBECTL} create secret generic cloud-sa -v="${VERBOSITY}" --from-file="${GCE_PD_SA_DIR}/cloud-sa.json" -n "${NAMESPACE}"
   fi
 fi
 
@@ -100,5 +100,5 @@ fi
 ${KUBECTL} version
 
 readonly tmp_spec=/tmp/gcp-compute-persistent-disk-csi-driver-specs-generated.yaml
-kustomize build "${PKGDIR}/deploy/kubernetes/overlays/${DEPLOY_VERSION}" | tee $tmp_spec
+${KUSTOMIZE_PATH} build "${PKGDIR}/deploy/kubernetes/overlays/${DEPLOY_VERSION}" | tee $tmp_spec
 ${KUBECTL} apply -v="${VERBOSITY}" -f $tmp_spec
