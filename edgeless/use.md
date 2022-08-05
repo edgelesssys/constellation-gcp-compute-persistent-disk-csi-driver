@@ -61,11 +61,11 @@ By default the CSI driver will transparently encrypt all disks staged on the nod
 Optionally, you can configure the driver to also apply integrity protection.
 
 Please note that enabling integrity protection requires wiping the disk before use.
-For small disks (10GB-20GB) this may only take a minute or two, while larger disks can take up to an hour or more, potentially blocking your Pods from starting for that time.
-If you intend to provision large amounts of storage and Pod creation speed is important, we recommend to not use this option.
+Disk wipe speeds are largely dependent on IOPS and the performance tier of the disk.
+If you intend to provision large amounts of storage and Pod creation speed is important,
+we recommend requesting high-performance disks.
 
-To enable integrity protection, create a storage class with an explicit file system type request and the integrity suffix.
-The following is a storage class for integrity protected `ext4` formatted disks:
+To enable integrity protection, create a storage class with an explicit file system type request and add the suffix `-integrity`.
 
 ```yaml
 apiVersion: storage.k8s.io/v1
