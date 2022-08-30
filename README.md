@@ -29,8 +29,7 @@ that represents availability by zone (e.g. `us-central1-c`, etc.).
 Install the driver using kubectl:
 
 ```shell
-driver_version=v1.3.0
-kubectl apply -k ./deploy/kubernetes/overlays/edgeless/${driver_version}
+kubectl apply -k ./deploy/kubernetes/overlays/edgeless/latest
 ```
 
 Wait for the driver setup to finish:
@@ -44,7 +43,7 @@ Proceed to [use](edgeless/use.md) to learn how to create a storage class for pro
 Remove the driver using kubectl:
 
 ```shell
-kubectl delete -k ./deploy/kubernetes/overlays/edgeless/${driver_version}
+kubectl delete -k ./deploy/kubernetes/overlays/edgeless/latest
 ```
 
 ## Further Documentation
