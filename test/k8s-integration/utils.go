@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 func runCommand(action string, cmd *exec.Cmd) error {

@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	apimachineryversion "k8s.io/apimachinery/pkg/util/version"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	testutils "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/test/e2e/utils"
 )
 
