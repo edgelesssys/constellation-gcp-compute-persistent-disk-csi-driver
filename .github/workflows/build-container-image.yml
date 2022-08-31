@@ -40,7 +40,7 @@ jobs:
         uses: docker/setup-buildx-action@f211e3e9ded2d9377c8cadc4489a4e38014bc4c9
 
       - name: Build container image
-        run: make GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/encrypted-gcp-csi-driver \
+        run: make GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/constellation/gcp-csi-driver \
           GCE_PD_CSI_STAGING_VERSION=${{ env.pseudoVersion }} \
           make push-container
 
@@ -54,9 +54,9 @@ jobs:
 
       - name: Push container image
         run: |
-          docker push ghcr.io/edgelesssys/encrypted-gcp-csi-driver:${{ env.pseudoVersion }}
+          docker push ghcr.io/edgelesssys/constellation/gcp-csi-driver:${{ env.pseudoVersion }}
           if [ "${{ inputs.versionTag }}" != "" ]
           then
-            docker tag ghcr.io/edgelesssys/encrypted-gcp-csi-driver:${{ env.pseudoVersion }} ghcr.io/edgelesssys/encrypted-gcp-csi-driver:${{ inputs.versionTag }}
-            docker push ghcr.io/edgelesssys/encrypted-gcp-csi-driver:${{ inputs.versionTag }}
+            docker tag ghcr.io/edgelesssys/constellation/gcp-csi-driver:${{ env.pseudoVersion }} ghcr.io/edgelesssys/constellation/gcp-csi-driver:${{ inputs.versionTag }}
+            docker push ghcr.io/edgelesssys/constellation/gcp-csi-driver:${{ inputs.versionTag }}
           fi

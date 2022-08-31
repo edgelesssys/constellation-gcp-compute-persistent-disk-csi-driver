@@ -56,7 +56,7 @@ To build the driver container image:
 
 ```shell
 driver_version=v0.0.0-test
-GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/encrypted-gcp-csi-driver \
+GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/constellation/gcp-csi-driver \
   GCE_PD_CSI_STAGING_VERSION=${driver_version} \
   make push-container
 ```
