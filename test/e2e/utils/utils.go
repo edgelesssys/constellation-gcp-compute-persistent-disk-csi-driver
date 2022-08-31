@@ -32,7 +32,7 @@ import (
 
 	"golang.org/x/oauth2/google"
 	cloudresourcemanager "google.golang.org/api/cloudresourcemanager/v1"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	boskosclient "k8s.io/test-infra/boskos/client"
 	"k8s.io/test-infra/boskos/common"
 	utilcommon "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"

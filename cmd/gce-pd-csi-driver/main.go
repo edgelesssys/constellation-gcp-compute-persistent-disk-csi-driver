@@ -29,7 +29,7 @@ import (
 	"runtime"
 	"time"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 
 	"github.com/edgelesssys/constellation/mount/cryptmapper"
 	cryptKms "github.com/edgelesssys/constellation/mount/kms"

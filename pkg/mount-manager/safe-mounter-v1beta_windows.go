@@ -39,7 +39,7 @@ import (
 	volumeapi "github.com/kubernetes-csi/csi-proxy/client/api/volume/v1beta1"
 	volumeclient "github.com/kubernetes-csi/csi-proxy/client/groups/volume/v1beta1"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	mount "k8s.io/mount-utils"
 )
 

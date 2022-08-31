@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	pathutils "k8s.io/utils/path"
 )
 
