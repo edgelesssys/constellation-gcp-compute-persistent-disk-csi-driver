@@ -32,8 +32,8 @@ RUN make
 
 FROM ubuntu:20.04 as builder
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y libdevmapper-dev libjson-c-dev wget pkg-config build-essential
-RUN wget https://go.dev/dl/go1.17.6.linux-amd64.tar.gz
-RUN tar -C /usr/local -xzf go1.17.6.linux-amd64.tar.gz
+RUN wget https://go.dev/dl/go1.18.4.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.18.4.linux-amd64.tar.gz
 ENV PATH=${PATH}:/usr/local/go/bin
 
 COPY --from=lib-builder /cryptsetup/.libs/libcryptsetup.so /usr/lib/x86_64-linux-gnu/libcryptsetup.so
