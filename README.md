@@ -1,6 +1,8 @@
-# Google Compute Engine Persistent Disk CSI Driver
+# GCP Persistent Disk CSI Driver for Constellation
 
-- [Upstream source](https://github.com/kubernetes-sigs/azuredisk-csi-driver)
+This is a fork of the GCP CSI driver with added encryption features for Constellation.
+
+- [Upstream source](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver)
 - [Constellation repo](https://github.com/edgelesssys/constellation)
 
 ## About
@@ -60,3 +62,7 @@ GCE_PD_CSI_STAGING_IMAGE=ghcr.io/edgelesssys/constellation/gcp-csi-driver \
   GCE_PD_CSI_STAGING_VERSION=${driver_version} \
   make push-container
 ```
+
+## License
+
+This project is licensed under the [AGPLv3](LICENSE). It's based on code licensed under the [Apache 2.0 license](LICENSE.Apache).
