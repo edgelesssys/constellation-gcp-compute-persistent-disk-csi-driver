@@ -44,8 +44,8 @@ import (
 
 	"k8s.io/klog"
 
-	"github.com/edgelesssys/constellation/mount/cryptmapper"
-	cryptKms "github.com/edgelesssys/constellation/mount/kms"
+	"github.com/edgelesssys/constellation/csi/cryptmapper"
+	cryptKms "github.com/edgelesssys/constellation/csi/kms"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
