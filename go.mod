@@ -11,7 +11,7 @@ require (
 	github.com/kubernetes-csi/csi-proxy/client v1.0.0
 	github.com/kubernetes-csi/csi-test/v4 v4.2.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.17.0
+	github.com/onsi/gomega v1.19.0
 	golang.org/x/oauth2 v0.0.0-20220622183110-fd043fe589d2
 	golang.org/x/sys v0.0.0-20220624220833-87e55d714810
 	google.golang.org/api v0.86.0
@@ -31,7 +31,7 @@ require (
 require (
 	cloud.google.com/go/compute v1.7.0
 	cloud.google.com/go/kms v1.4.0
-	github.com/edgelesssys/constellation v0.0.1-0.20220830131551-778952e07c25
+	github.com/edgelesssys/constellation v0.0.1-0.20220913080851-a318a8296881
 	k8s.io/klog v1.0.0
 )
 
@@ -44,7 +44,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
+	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
@@ -91,7 +91,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.24.3 // indirect
 	k8s.io/klog/v2 v2.60.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
+	k8s.io/kube-openapi v0.0.0-20220627174259-011e075b9cb8 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
