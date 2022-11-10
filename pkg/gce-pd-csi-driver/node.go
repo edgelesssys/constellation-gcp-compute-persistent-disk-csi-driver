@@ -356,14 +356,19 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 
 	// [Edgeless] Part 2.5: Map the device as a crypt device, creating a new LUKS partition if needed
 	fstype, integrity := cryptmapper.IsIntegrityFS(fstype)
+	if integrity {
+		klog.V(4).Infof("Integrity protected FS requested. Preparing to wipe device...")
+	}
 	devicePathReal, err := ns.evalSymLinks(devicePath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("could not evaluate device path for device %q: %v", devicePath, err))
 	}
+	klog.V(4).Infof("Creating LUKS2 device on %s", devicePathReal)
 	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePathReal, volumeKey.Name, integrity)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume failed on volume %v to %s, open crypt device failed (%v)", devicePath, stagingTargetPath, err))
 	}
+	klog.V(4).Infof("Successfully created LUKS2 device on %s", devicePath)
 
 	// Part 3: Mount device to stagingTargetPath
 	if blk := volumeCapability.GetBlock(); blk != nil {
