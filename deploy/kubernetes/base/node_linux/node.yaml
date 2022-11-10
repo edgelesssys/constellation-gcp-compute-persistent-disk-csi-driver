@@ -12,6 +12,11 @@ spec:
       labels:
         app: gcp-compute-persistent-disk-csi-driver
     spec:
+      # Host network must be used for interaction with Workload Identity in GKE
+      # since it replaces GCE Metadata Server with GKE Metadata Server. Remove
+      # this requirement when issue is resolved and before any exposure of
+      # metrics ports.
+      hostNetwork: true
       priorityClassName: csi-gce-pd-node
       serviceAccountName: csi-gce-pd-node-sa
       nodeSelector:
@@ -22,7 +27,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/gcp.csi.confidential.cloud/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/pd.csi.storage.gke.io/csi.sock"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -38,13 +43,12 @@ spec:
             exec:
               command:
                 - /csi-node-driver-registrar
-                - --kubelet-registration-path=/var/lib/kubelet/plugins/gcp.csi.confidential.cloud/csi.sock
+                - --kubelet-registration-path=/var/lib/kubelet/plugins/pd.csi.storage.gke.io/csi.sock
                 - --mode=kubelet-registration-probe
         - name: gce-pd-driver
           # Don't change base image without changing pdImagePlaceholder in
           # test/k8s-integration/main.go
           image: gke.gcr.io/gcp-compute-persistent-disk-csi-driver
-          imagePullPolicy: IfNotPresent
           args:
             - "--v=5"
             - "--endpoint=unix:/csi/csi.sock"
@@ -69,8 +73,6 @@ spec:
               mountPath: /run/udev
             - name: sys
               mountPath: /sys
-            - name: cryptsetup
-              mountPath: /run/cryptsetup
       volumes:
         - name: registration-dir
           hostPath:
@@ -82,7 +84,7 @@ spec:
             type: Directory
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/gcp.csi.confidential.cloud/
+            path: /var/lib/kubelet/plugins/pd.csi.storage.gke.io/
             type: DirectoryOrCreate
         - name: device-dir
           hostPath:
@@ -105,10 +107,6 @@ spec:
         - name: sys
           hostPath:
             path: /sys
-            type: Directory
-        - name: cryptsetup
-          hostPath:
-            path: /run/cryptsetup
             type: Directory
       # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
       # See "special case". This will tolerate everything. Node component should
