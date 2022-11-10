@@ -5,4 +5,4 @@ namespace:
 resources:
 - controller
 - node_linux
-#- node_windows
+- node_windows
