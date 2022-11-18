@@ -21,8 +21,16 @@ image:
     pullPolicy: IfNotPresent
   gcepdDriver:
     repo: ghcr.io/edgelesssys/constellation/gcp-csi-driver
+    # CSI driver version is independent of Constellation releases
     tag: "v1.0.0"
     pullPolicy: IfNotPresent
 
+csiController:
+  replicas: 1
+  runOnControlPlane: true
+
 csiNode:
-  kmsAddress: "kms.kube-system:9000"
+  kmsPort: "9000"
+  kmsNamespace: "kube-system"
+
+createStorageClass: true
