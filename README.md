@@ -28,10 +28,10 @@ that represents availability by zone (e.g. `us-central1-c`, etc.).
 
 ## Driver Deployment
 
-Install the driver using kubectl:
+Use `helm` to deploy the driver to your cluster:
 
 ```shell
-kubectl apply -k ./deploy/kubernetes/overlays/edgeless/latest
+helm install gcp-csi-driver charts/ --namespace=kube-system
 ```
 
 Wait for the driver setup to finish:
@@ -42,10 +42,10 @@ kubectl wait -n kube-system deployments csi-gce-pd-controller --for condition=av
 
 Proceed to [use](edgeless/use.md) to learn how to create a storage class for provisioning encrypted storage to your workloads.
 
-Remove the driver using kubectl:
+Remove the driver using `helm`:
 
 ```shell
-kubectl delete -k ./deploy/kubernetes/overlays/edgeless/latest
+helm uninstall 
 ```
 
 ## Further Documentation

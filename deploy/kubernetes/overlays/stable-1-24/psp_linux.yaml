@@ -18,10 +18,10 @@ spec:
   allowedHostPaths:
   - pathPrefix: "/var/lib/kubelet/plugins_registry/"
   - pathPrefix: "/var/lib/kubelet"
-  - pathPrefix: "/var/lib/kubelet/plugins/gcp.csi.confidential.cloud/"
+  - pathPrefix: "/var/lib/kubelet/plugins/pd.csi.storage.gke.io/"
   - pathPrefix: "/dev"
   - pathPrefix: "/etc/udev"
   - pathPrefix: "/lib/udev"
   - pathPrefix: "/run/udev"
   - pathPrefix: "/sys"
-  - pathPrefix: "/run/cryptsetup"
+
