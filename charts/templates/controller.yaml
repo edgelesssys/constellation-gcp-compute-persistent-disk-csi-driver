@@ -2,8 +2,9 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: csi-gce-pd-controller
+  namespace: {{ .Release.Namespace }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.csiController.replicas }}
   selector:
     matchLabels:
       app: gcp-compute-persistent-disk-csi-driver
@@ -12,25 +13,39 @@ spec:
       labels:
         app: gcp-compute-persistent-disk-csi-driver
     spec:
-      # Host network must be used for interaction with Workload Identity in GKE
-      # since it replaces GCE Metadata Server with GKE Metadata Server. Remove
-      # this requirement when issue is resolved and before any exposure of
-      # metrics ports
-      hostNetwork: true
+{{- if .Values.csiController.runOnControlPlane }}
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        - effect: NoSchedule
+          key: node.cloudprovider.kubernetes.io/uninitialized
+          operator: Exists
+        - effect: NoSchedule
+          key: node.kubernetes.io/not-ready
+          operator: Exists
+{{- end }}
       nodeSelector:
         kubernetes.io/os: linux
+{{- if .Values.csiController.runOnControlPlane }}
+        node-role.kubernetes.io/control-plane: ""
+{{- end }}
       serviceAccountName: csi-gce-pd-controller-sa
       priorityClassName: csi-gce-pd-controller
       containers:
         - name: csi-provisioner
-          image: k8s.gcr.io/sig-storage/csi-provisioner
+          image: {{ .Values.image.csiProvisioner.repo }}:{{ .Values.image.csiProvisioner.tag }}
+          imagePullPolicy: {{ .Values.image.csiProvisioner.pullPolicy }}
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
             - "--feature-gates=Topology=true"
             - "--http-endpoint=:22011"
             - "--leader-election-namespace=$(PDCSI_NAMESPACE)"
-            - "--timeout=250s"
+            - "--timeout=450s"
             - "--extra-create-metadata"
           # - "--run-controller-service=false"  # disable the controller service of the CSI driver
           # - "--run-node-service=false"        # disable the node service of the CSI driver
@@ -58,14 +73,15 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-attacher
-          image: k8s.gcr.io/sig-storage/csi-attacher
+          image: {{ .Values.image.csiAttacher.repo }}:{{ .Values.image.csiAttacher.tag }}
+          imagePullPolicy: {{ .Values.image.csiAttacher.pullPolicy }}
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
             - "--http-endpoint=:22012"
             - "--leader-election"
             - "--leader-election-namespace=$(PDCSI_NAMESPACE)"
-            - "--timeout=250s"
+            - "--timeout=450s"
           env:
             - name: PDCSI_NAMESPACE
               valueFrom:
@@ -87,7 +103,8 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-resizer
-          image: k8s.gcr.io/sig-storage/csi-resizer
+          image: {{ .Values.image.csiResizer.repo }}:{{ .Values.image.csiResizer.tag }}
+          imagePullPolicy: {{ .Values.image.csiResizer.pullPolicy }}
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
@@ -116,14 +133,15 @@ spec:
             - name: socket-dir
               mountPath: /csi
         - name: csi-snapshotter
-          image: k8s.gcr.io/sig-storage/csi-snapshotter
+          image: {{ .Values.image.csiSnapshotter.repo }}:{{ .Values.image.csiSnapshotter.tag }}
+          imagePullPolicy: {{ .Values.image.csiSnapshotter.pullPolicy }}
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
             - "--metrics-address=:22014"
             - "--leader-election"
             - "--leader-election-namespace=$(PDCSI_NAMESPACE)"
-            - "--timeout=300s"
+            - "--timeout=450s"
           env:
             - name: PDCSI_NAMESPACE
               valueFrom:
@@ -135,13 +153,14 @@ spec:
         - name: gce-pd-driver
           # Don't change base image without changing pdImagePlaceholder in
           # test/k8s-integration/main.go
-          image: gke.gcr.io/gcp-compute-persistent-disk-csi-driver
+          image: {{ .Values.image.gcepdDriver.repo }}:{{ .Values.image.gcepdDriver.tag }}
+          imagePullPolicy: {{ .Values.image.gcepdDriver.pullPolicy }}
           args:
             - "--v=5"
             - "--endpoint=unix:/csi/csi.sock"
           env:
             - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: "/etc/cloud-sa/cloud-sa.json"
+              value: "/etc/cloud-sa/key.json"
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -153,4 +172,4 @@ spec:
           emptyDir: {}
         - name: cloud-sa-volume
           secret:
-            secretName: cloud-sa
+            secretName: gcekey
