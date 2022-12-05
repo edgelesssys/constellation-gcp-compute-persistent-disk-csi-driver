@@ -18,11 +18,10 @@ package gceGCEDriver
 import (
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"k8s.io/mount-utils"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 )
@@ -36,15 +35,22 @@ func getDevicePath(ns *GCENodeServer, volumeID, partition string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("error getting device name: %w", err)
 	}
-	devicePaths := ns.DeviceUtils.GetDiskByIdPaths(deviceName, partition)
-	devicePath, err := ns.DeviceUtils.VerifyDevicePath(devicePaths, deviceName)
-	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("error verifying GCE PD (%q) is attached: %v", deviceName, err.Error()))
+	if deviceName == "" {
+		return "", fmt.Errorf("device name is empty")
 	}
-	if devicePath == "" {
-		return "", status.Error(codes.Internal, fmt.Sprintf("Unable to find device path out of attempted paths: %v", devicePaths))
-	}
-	return devicePath, nil
+	return path.Join("/dev/disk/by-id/", "google-"+deviceName), nil
+	// This section uses udevadm to try and fix potential problems, requiring us to mount udev inside the container
+	// These problems have been fixed in Kubernetes in 2016 so we no longer need this code
+	//
+	// devicePaths := ns.DeviceUtils.GetDiskByIdPaths(deviceName, partition)
+	// devicePath, err := ns.DeviceUtils.VerifyDevicePath(devicePaths, deviceName)
+	// if err != nil {
+	// 	return "", status.Error(codes.Internal, fmt.Sprintf("error verifying GCE PD (%q) is attached: %v", deviceName, err))
+	// }
+	// if devicePath == "" {
+	// 	return "", status.Error(codes.Internal, fmt.Sprintf("Unable to find device path out of attempted paths: %v", devicePaths))
+	// }
+	// return devicePath, nil
 }
 
 func formatAndMount(source, target, fstype string, options []string, m *mount.SafeFormatAndMount) error {

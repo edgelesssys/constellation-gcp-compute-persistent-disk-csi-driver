@@ -32,7 +32,7 @@
 
 ARG BUILDPLATFORM
 
-FROM --platform=$BUILDPLATFORM golang:1.18.4 as builder
+FROM --platform=$BUILDPLATFORM golang:1.19.1 as builder
 
 ARG STAGINGVERSION
 ARG TARGETPLATFORM
@@ -59,7 +59,7 @@ ENV LIB_DIR_PREFIX x86_64
 FROM distroless-base AS distroless-arm64
 ENV LIB_DIR_PREFIX aarch64
 
-FROM distroless-$TARGETARCH
+FROM distroless-$TARGETARCH as output-image
 
 # Copy necessary dependencies into distroless base.
 COPY --from=builder /go/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/bin/gce-pd-csi-driver /gce-pd-csi-driver
@@ -125,6 +125,10 @@ COPY --from=debian /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libacl.so.1 \
                    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre2-8.so.0 \
                    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre2-8.so.0.10.1 \
                    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libkmod.so.2 \
+                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libedit.so.2 \
+                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libinih.so.1 \
+                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libbsd.so.0 \
+                   /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libmd.so.0 \
                    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libargon2.so.1 \
                    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libjson-c.so.5.1.0 \
                    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libjson-c.so.5 \
