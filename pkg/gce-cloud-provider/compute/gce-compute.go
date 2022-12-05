@@ -111,7 +111,7 @@ func (cloud *CloudProvider) GetDefaultZone() string {
 }
 
 // ListDisks lists disks based on maxEntries and pageToken only in the project
-// and zone that the driver is running in.
+// and region that the driver is running in.
 func (cloud *CloudProvider) ListDisks(ctx context.Context) ([]*computev1.Disk, string, error) {
 	region, err := common.GetRegionFromZones([]string{cloud.zone})
 	if err != nil {
@@ -123,6 +123,20 @@ func (cloud *CloudProvider) ListDisks(ctx context.Context) ([]*computev1.Disk, s
 	}
 	items := []*computev1.Disk{}
 
+	// listing out regional disks in the region
+	rlCall := cloud.service.RegionDisks.List(cloud.project, region)
+	nextPageToken := "pageToken"
+	for nextPageToken != "" {
+		rDiskList, err := rlCall.Do()
+		if err != nil {
+			return nil, "", err
+		}
+		items = append(items, rDiskList.Items...)
+		nextPageToken = rDiskList.NextPageToken
+		rlCall.PageToken(nextPageToken)
+	}
+
+	// listing out zonal disks in all zones of the region
 	for _, zone := range zones {
 		lCall := cloud.service.Disks.List(cloud.project, zone)
 		nextPageToken := "pageToken"
@@ -1059,6 +1073,7 @@ func (cloud *CloudProvider) createZonalDiskSnapshot(ctx context.Context, project
 		Name:             snapshotName,
 		StorageLocations: snapshotParams.StorageLocations,
 		Description:      description,
+		Labels:           snapshotParams.Labels,
 	}
 
 	_, err := cloud.service.Disks.CreateSnapshot(project, volKey.Zone, volKey.Name, snapshotToCreate).Context(ctx).Do()
@@ -1075,6 +1090,7 @@ func (cloud *CloudProvider) createRegionalDiskSnapshot(ctx context.Context, proj
 		Name:             snapshotName,
 		StorageLocations: snapshotParams.StorageLocations,
 		Description:      description,
+		Labels:           snapshotParams.Labels,
 	}
 
 	_, err := cloud.service.RegionDisks.CreateSnapshot(project, volKey.Region, volKey.Name, snapshotToCreate).Context(ctx).Do()
@@ -1115,9 +1131,13 @@ func (cloud *CloudProvider) waitForSnapshotCreation(ctx context.Context, project
 
 // kmsKeyEqual returns true if fetchedKMSKey and storageClassKMSKey refer to the same key.
 // fetchedKMSKey - key returned by the server
-//        example: projects/{0}/locations/{1}/keyRings/{2}/cryptoKeys/{3}/cryptoKeyVersions/{4}
+//
+//	example: projects/{0}/locations/{1}/keyRings/{2}/cryptoKeys/{3}/cryptoKeyVersions/{4}
+//
 // storageClassKMSKey - key as provided by the client
-//        example: projects/{0}/locations/{1}/keyRings/{2}/cryptoKeys/{3}
+//
+//	example: projects/{0}/locations/{1}/keyRings/{2}/cryptoKeys/{3}
+//
 // cryptoKeyVersions should be disregarded if the rest of the key is identical.
 func KmsKeyEqual(fetchedKMSKey, storageClassKMSKey string) bool {
 	return removeCryptoKeyVersion(fetchedKMSKey) == removeCryptoKeyVersion(storageClassKMSKey)

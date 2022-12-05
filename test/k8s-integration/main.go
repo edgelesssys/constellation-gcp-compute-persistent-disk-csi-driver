@@ -478,6 +478,12 @@ func handle() error {
 		return fmt.Errorf("Unknown deployment strategy %s", testParams.deploymentStrategy)
 	}
 
+	skipDiskImageSnapshots := false
+	if mustParseVersion(testParams.clusterVersion).lessThan(mustParseVersion("1.22.0")) {
+		// Disk image cloning in only supported from 1.22 on.
+		skipDiskImageSnapshots = true
+	}
+
 	// Run the tests using the k8sSourceDir kubernetes
 	if len(*storageClassFiles) != 0 {
 		applicableStorageClassFiles := []string{}
@@ -498,6 +504,9 @@ func handle() error {
 		}
 		for _, rawSnapshotClassFile := range strings.Split(*snapshotClassFiles, ",") {
 			snapshotClassFile := strings.TrimSpace(rawSnapshotClassFile)
+			if skipDiskImageSnapshots && strings.Contains(snapshotClassFile, "image-volumesnapshotclass") {
+				continue
+			}
 			if len(snapshotClassFile) != 0 {
 				applicableSnapshotClassFiles = append(applicableSnapshotClassFiles, snapshotClassFile)
 			}
@@ -620,6 +629,15 @@ func generateGKETestSkip(testParams *testParameters) string {
 		(!testParams.useGKEManagedDriver && (*curVer).lessThan(mustParseVersion("1.17.0"))) {
 		skipString = skipString + "|VolumeSnapshotDataSource"
 	}
+
+	// Starting in 1.23, the storage framework uses ephemeral containers for
+	// testing data written to a pod. This is enabled by looking only at the
+	// control plane, so it breaks on node skew tests when ephemeral containers
+	// exist in the API but aren't supported on the node.
+	if nodeVer != nil && nodeVer.lessThan(mustParseVersion("1.23.0")) && mustParseVersion("1.23.0").lessThan(curVer) {
+		skipString = skipString + "|volumes.should.store.data|provisioning.should.provision.storage.with.snapshot.data.source"
+	}
+
 	return skipString
 }
 
