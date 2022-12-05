@@ -51,7 +51,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 
-	"github.com/edgelesssys/constellation/csi/cryptmapper"
+	"github.com/edgelesssys/constellation/v2/csi/cryptmapper"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/deviceutils"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
@@ -495,6 +495,20 @@ func (ns *GCENodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeUnstageVolume failed: %v\nUnmounting arguments: %s\n", err.Error(), stagingTargetPath))
 	}
 
+	_, volumeKey, err := common.VolumeIDToKey(volumeID)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("NodeUnstageVolume failed: Volume ID is invalid: %s", err.Error()))
+	}
+	deviceName, err := common.GetDeviceName(volumeKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("NodeUnstageVolume failed: getting device name: %s", err.Error()))
+	}
+
+	// [Edgeless] Unmap the crypt device so we can properly remove the device from the node
+	if err := ns.CryptMapper.CloseCryptDevice(deviceName); err != nil {
+		return nil, status.Errorf(codes.Internal, "NodeUnstageVolume failed to close mapped crypt device for disk %s: %s", stagingTargetPath, err.Error())
+	}
+
 	if err := ns.confirmDeviceUnused(volumeID); err != nil {
 		var targetErr *ignoreableError
 		if errors.As(err, &targetErr) {
@@ -502,11 +516,6 @@ func (ns *GCENodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 		} else {
 			return nil, status.Errorf(codes.Internal, "NodeUnstageVolume for volume %s failed: %v", volumeID, err)
 		}
-	}
-
-	// [Edgeless] Unmap the crypt device so we can properly remove the device from the node
-	if err := ns.CryptMapper.CloseCryptDevice(devicePath); err != nil {
-		return nil, status.Errorf(codes.Internal, "NodeUnstageVolume failed to close mapped crypt device for disk %s: %v", stagingTargetPath, err.Error())
 	}
 
 	klog.V(4).Infof("NodeUnstageVolume succeeded on %v from %s", volumeID, stagingTargetPath)
