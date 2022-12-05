@@ -24,19 +24,18 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/k8s-cloud-provider/pkg/cloud/meta"
-	"github.com/golang/protobuf/ptypes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/util/clock"
+	clock "k8s.io/utils/clock/testing"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/flowcontrol"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
-	gcecloudprovider "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
 )
 
 const (
@@ -71,8 +70,8 @@ var (
 
 func TestCreateSnapshotArguments(t *testing.T) {
 	thetime, _ := time.Parse(time.RFC3339, gce.Timestamp)
-	tp, err := ptypes.TimestampProto(thetime)
-	if err != nil {
+	tp := timestamppb.New(thetime)
+	if err := tp.CheckValid(); err != nil {
 		t.Fatalf("Unable to conver time to timestamp: %v", err)
 	}
 	// Define test cases
@@ -2207,7 +2206,7 @@ func backoffTesterForUnpublish(t *testing.T, config *backoffTesterConfig) {
 		}()
 		go func() {
 			executeChan := <-readyToExecute
-			executeChan <- gcecloudprovider.Signal{ReportError: reportError}
+			executeChan <- gce.Signal{ReportError: reportError}
 		}()
 		return <-response
 	}
@@ -2371,7 +2370,7 @@ func backoffTesterForPublish(t *testing.T, config *backoffTesterConfig) {
 		}()
 		go func() {
 			executeChan := <-readyToExecute
-			executeChan <- gcecloudprovider.Signal{ReportError: reportError}
+			executeChan <- gce.Signal{ReportError: reportError}
 		}()
 		return <-response
 	}
