@@ -30,7 +30,6 @@ csiController:
   runOnControlPlane: true
 
 csiNode:
-  kmsPort: "9000"
-  kmsNamespace: "kube-system"
+  keyserviceNamespace: "kube-system"
 
 createStorageClass: true
