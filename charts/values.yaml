@@ -29,7 +29,9 @@ csiController:
   replicas: 1
   runOnControlPlane: true
 
-csiNode:
+global:
+  keyserviceName: "keyservice"
+  keyservicePort: 9000
   keyserviceNamespace: "kube-system"
 
 createStorageClass: true
