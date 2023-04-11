@@ -33,7 +33,7 @@ func getDevicePath(ns *GCENodeServer, volumeID, partition string) (string, error
 	}
 	deviceName, err := common.GetDeviceName(volumeKey)
 	if err != nil {
-		return "", fmt.Errorf("error getting device name: %v", err)
+		return "", fmt.Errorf("error getting device name: %w", err)
 	}
 	if deviceName == "" {
 		return "", fmt.Errorf("device name is empty")
@@ -76,7 +76,7 @@ func cleanupStagePath(path string, m *mount.SafeFormatAndMount) error {
 func getBlockSizeBytes(devicePath string, m *mount.SafeFormatAndMount) (int64, error) {
 	output, err := m.Exec.Command("blockdev", "--getsize64", devicePath).CombinedOutput()
 	if err != nil {
-		return -1, fmt.Errorf("error when getting size of block volume at path %s: output: %s, err: %v", devicePath, string(output), err)
+		return -1, fmt.Errorf("error when getting size of block volume at path %s: output: %s, err: %w", devicePath, string(output), err)
 	}
 	strOut := strings.TrimSpace(string(output))
 	gotSizeBytes, err := strconv.ParseInt(strOut, 10, 64)

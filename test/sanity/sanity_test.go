@@ -40,6 +40,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -47,6 +48,7 @@ import (
 	sanity "github.com/kubernetes-csi/csi-test/v4/pkg/sanity"
 	compute "google.golang.org/api/compute/v1"
 	common "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
+	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/deviceutils"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
 	driver "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-pd-csi-driver"
@@ -75,19 +77,19 @@ func TestSanity(t *testing.T) {
 
 	cloudProvider, err := gce.CreateFakeCloudProvider(project, zone, nil)
 	if err != nil {
-		t.Fatalf("Failed to get cloud provider: %v", err)
+		t.Fatalf("Failed to get cloud provider: %v", err.Error())
 	}
 
 	mounter := mountmanager.NewFakeSafeMounter()
-	deviceUtils := mountmanager.NewFakeDeviceUtils()
+	deviceUtils := deviceutils.NewFakeDeviceUtils()
 
-	//Initialize GCE Driver
+	// Initialize GCE Driver
 	identityServer := driver.NewIdentityServer(gceDriver)
-	controllerServer := driver.NewControllerServer(gceDriver, cloudProvider)
+	controllerServer := driver.NewControllerServer(gceDriver, cloudProvider, 0, 5*time.Minute)
 	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{}, func(s string) (string, error) { return s, nil })
 	err = gceDriver.SetupGCEDriver(driverName, vendorVersion, extraLabels, identityServer, controllerServer, nodeServer)
 	if err != nil {
-		t.Fatalf("Failed to initialize GCE CSI Driver: %v", err)
+		t.Fatalf("Failed to initialize GCE CSI Driver: %v", err.Error())
 	}
 
 	instance := &compute.Instance{
@@ -98,18 +100,18 @@ func TestSanity(t *testing.T) {
 
 	err = os.MkdirAll(tmpDir, 0755)
 	if err != nil {
-		t.Fatalf("Failed to create sanity temp working dir %s: %v", tmpDir, err)
+		t.Fatalf("Failed to create sanity temp working dir %s: %v", tmpDir, err.Error())
 	}
 
 	defer func() {
 		// Clean up tmp dir
 		if err = os.RemoveAll(tmpDir); err != nil {
-			t.Fatalf("Failed to clean up sanity temp working dir %s: %v", tmpDir, err)
+			t.Fatalf("Failed to clean up sanity temp working dir %s: %v", tmpDir, err.Error())
 		}
 	}()
 
 	go func() {
-		gceDriver.Run(endpoint)
+		gceDriver.Run(endpoint, 10000)
 	}()
 
 	// TODO(#818): Fix failing tests and remove test skip flag.

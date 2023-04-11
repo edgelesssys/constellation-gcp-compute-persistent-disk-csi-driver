@@ -16,7 +16,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 This file incorporates work covered by the following copyright and
 permission notice:
 
-
 Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,22 +34,29 @@ package gceGCEDriver
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"k8s.io/utils/exec"
+	testingexec "k8s.io/utils/exec/testing"
+
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/mount-utils"
+	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/deviceutils"
 	metadataservice "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/metadata"
 	mountmanager "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/mount-manager"
 )
 
-const defaultVolumeID = "project/test001/zones/c1/disks/testDisk"
-const defaultTargetPath = "/mnt/test"
-const defaultStagingPath = "/staging"
+const (
+	defaultVolumeID    = "project/test001/zones/c1/disks/testDisk"
+	defaultTargetPath  = "/mnt/test"
+	defaultStagingPath = "/staging"
+)
 
 type fakeCryptMapper struct {
 	deviceName string
@@ -77,10 +83,14 @@ func fakeEvalSymlinks(path string) (string, error) {
 }
 
 func getTestGCEDriver(t *testing.T) *GCEDriver {
-	return getCustomTestGCEDriver(t, mountmanager.NewFakeSafeMounter(), mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService())
+	return getCustomTestGCEDriver(t, mountmanager.NewFakeSafeMounter(), deviceutils.NewFakeDeviceUtils(), metadataservice.NewFakeService())
 }
 
-func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, deviceUtils mountmanager.DeviceUtils, metaService metadataservice.MetadataService) *GCEDriver {
+func getTestGCEDriverWithCustomMounter(t *testing.T, mounter *mount.SafeFormatAndMount) *GCEDriver {
+	return getCustomTestGCEDriver(t, mounter, deviceutils.NewFakeDeviceUtils(), metadataservice.NewFakeService())
+}
+
+func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, deviceUtils deviceutils.DeviceUtils, metaService metadataservice.MetadataService) *GCEDriver {
 	gceDriver := GetGCEDriver()
 	nodeServer := NewNodeServer(gceDriver, mounter, deviceUtils, metaService, mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{}, fakeEvalSymlinks)
 	err := gceDriver.SetupGCEDriver(driver, "test-vendor", nil, nil, nil, nodeServer)
@@ -93,12 +103,21 @@ func getCustomTestGCEDriver(t *testing.T, mounter *mount.SafeFormatAndMount, dev
 func getTestBlockingGCEDriver(t *testing.T, readyToExecute chan chan struct{}) *GCEDriver {
 	gceDriver := GetGCEDriver()
 	mounter := mountmanager.NewFakeSafeBlockingMounter(readyToExecute)
-	nodeServer := NewNodeServer(gceDriver, mounter, mountmanager.NewFakeDeviceUtils(), metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{}, fakeEvalSymlinks)
+	nodeServer := NewNodeServer(gceDriver, mounter, deviceutils.NewFakeDeviceUtils(), metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{}, fakeEvalSymlinks)
 	err := gceDriver.SetupGCEDriver(driver, "test-vendor", nil, nil, nil, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to setup GCE Driver: %v", err)
 	}
 	return gceDriver
+}
+
+func makeFakeCmd(fakeCmd *testingexec.FakeCmd, cmd string, args ...string) testingexec.FakeCommandAction {
+	c := cmd
+	a := args
+	return func(cmd string, args ...string) exec.Cmd {
+		command := testingexec.InitFakeCmd(fakeCmd, c, a...)
+		return command
+	}
 }
 
 func TestNodeGetVolumeStats(t *testing.T) {
@@ -156,7 +175,6 @@ func TestNodeGetVolumeStats(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-
 			req := &csi.NodeGetVolumeStatsRequest{
 				VolumeId:   tc.volumeID,
 				VolumePath: tc.volumePath,
@@ -173,7 +191,6 @@ func TestNodeGetVolumeStats(t *testing.T) {
 }
 
 func TestNodeGetVolumeLimits(t *testing.T) {
-
 	gceDriver := getTestGCEDriver(t)
 	ns := gceDriver.ns
 	req := &csi.NodeGetInfoRequest{}
@@ -389,8 +406,6 @@ func TestNodeUnpublishVolume(t *testing.T) {
 }
 
 func TestNodeStageVolume(t *testing.T) {
-	gceDriver := getTestGCEDriver(t)
-	ns := gceDriver.ns
 	volumeID := "project/test001/zones/c1/disks/testDisk"
 	blockCap := &csi.VolumeCapability_Block{
 		Block: &csi.VolumeCapability_BlockVolume{},
@@ -474,6 +489,61 @@ func TestNodeStageVolume(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Logf("Test case: %s", tc.name)
+		actionList := []testingexec.FakeCommandAction{
+			makeFakeCmd(
+				&testingexec.FakeCmd{
+					CombinedOutputScript: []testingexec.FakeAction{
+						func() ([]byte, []byte, error) {
+							return []byte(fmt.Sprintf("DEVNAME=/dev/sdb\nTYPE=ext4")), nil, nil
+						},
+					},
+				},
+				"blkid",
+			),
+			makeFakeCmd(
+				&testingexec.FakeCmd{
+					CombinedOutputScript: []testingexec.FakeAction{
+						func() ([]byte, []byte, error) {
+							return []byte("1"), nil, nil
+						},
+					},
+				},
+				"blockdev",
+			),
+			makeFakeCmd(
+				&testingexec.FakeCmd{
+					CombinedOutputScript: []testingexec.FakeAction{
+						func() ([]byte, []byte, error) {
+							return []byte("1"), nil, nil
+						},
+					},
+				},
+				"blockdev",
+			),
+			makeFakeCmd(
+				&testingexec.FakeCmd{
+					CombinedOutputScript: []testingexec.FakeAction{
+						func() ([]byte, []byte, error) {
+							return []byte(fmt.Sprintf("DEVNAME=/dev/sdb\nTYPE=ext4")), nil, nil
+						},
+					},
+				},
+				"blkid",
+			),
+			makeFakeCmd(
+				&testingexec.FakeCmd{
+					CombinedOutputScript: []testingexec.FakeAction{
+						func() ([]byte, []byte, error) {
+							return []byte(fmt.Sprintf("block size: 1\nblock count: 1")), nil, nil
+						},
+					},
+				},
+				"dumpe2fs",
+			),
+		}
+		mounter := mountmanager.NewFakeSafeMounterWithCustomExec(&testingexec.FakeExec{CommandScript: actionList})
+		gceDriver := getTestGCEDriverWithCustomMounter(t, mounter)
+		ns := gceDriver.ns
 		_, err := ns.NodeStageVolume(context.Background(), tc.req)
 		if err != nil {
 			serverError, ok := status.FromError(err)
