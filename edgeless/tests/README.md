@@ -1,31 +1,38 @@
 # CSI driver e2e tests
 
-Run end to end tests using the kubernetes `e2e.test` binary.
+Run CSI e2e tests using [`sonobuoy`](https://github.com/vmware-tanzu/sonobuoy/releases/latest).
 
-Download the binary for the your Kubernetes version:
+## Generate test framework
+
+Generate CSI e2e test sonobuoy config:
+
 ```shell
-K8S_VER=1.23.0
-curl --location https://dl.k8s.io/v${K8S_VER}/kubernetes-test-linux-amd64.tar.gz | \
-  tar --strip-components=3 -zxf - kubernetes/test/bin/e2e.test
+KUBECONFIG=</path/to/kubeconfig`
+sonobuoy gen --e2e-focus='External.Storage' --e2e-skip='\[Disruptive\]' --kubeconfig=${KUBECONFIG} > sonobuoy.yaml
 ```
 
-For an overview on how to run tests read the [Kubernetes blog post](https://kubernetes.io/blog/2020/01/08/testing-of-csi-drivers/#end-to-end-testing).
+Apply driver patch:
+
+```shell
+patch sonobuoy.yaml < patch.diff
+```
 
 ## Running the test suite
 
-1. Set up the CSI driver
+Start the test:
 
-    ```shell
-    kubectl apply -k ./deploy/kubernetes/overlays/edgeless/v1.0.0
-    kubectl wait -n kube-system csi-gce-pd-controller --for condition=available
-    ```
+```shell
+kubectl apply -f sonobuoy.yaml
+```
 
-1. Run the tests
+Wait for tests to complete:
 
-    ```shell
-    ./e2e.test \
-        -ginkgo.v \
-        -ginkgo.focus='External.Storage' \
-        -ginkgo.skip='\[Disruptive\]' \
-        -storage.testdriver=driver.yaml
-    ```
+```shell
+sonobuoy wait
+```
+
+Analyze results:
+
+```shell
+sonobuoy results $(sonobuoy retrieve)
+```
