@@ -23,7 +23,7 @@ import (
 	"os/user"
 	"strings"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -34,7 +34,7 @@ var (
 func init() {
 	usr, err := user.Current()
 	if err != nil {
-		klog.Fatal(err)
+		klog.Fatal(err.Error())
 	}
 	sshDefaultKey = fmt.Sprintf("%s/.ssh/google_compute_engine", usr.HomeDir)
 
@@ -106,7 +106,7 @@ func runSSHCommand(cmd string, args ...string) (string, error) {
 
 	output, err := exec.Command(cmd, args...).CombinedOutput()
 	if err != nil {
-		return string(output), fmt.Errorf("command [%s %s] failed with error: %v", cmd, strings.Join(args, " "), err)
+		return string(output), fmt.Errorf("command [%s %s] failed with error: %v", cmd, strings.Join(args, " "), err.Error())
 	}
 	return string(output), nil
 }

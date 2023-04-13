@@ -21,7 +21,7 @@ import (
 
 	csipb "github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -85,7 +85,7 @@ func (c *CsiClient) AssertCSIConnection() error {
 			return true, nil
 		})
 		if err != nil || conn == nil {
-			return fmt.Errorf("Failed to get client connection: %v", err)
+			return fmt.Errorf("Failed to get client connection: %v", err.Error())
 		}
 		c.conn = conn
 		c.idClient = csipb.NewIdentityClient(conn)

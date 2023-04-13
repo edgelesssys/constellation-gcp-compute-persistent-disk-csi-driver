@@ -50,7 +50,7 @@ import (
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -61,10 +61,6 @@ const (
 	diskTypeURITemplateRegional     = "projects/%s/regions/%s/diskTypes/%s" // {gce.projectID}/regions/{disk.Region}/diskTypes/{disk.Type}"
 
 	regionURITemplate = "projects/%s/regions/%s"
-
-	GCEComputeAPIEndpoint      = "https://www.googleapis.com/compute/v1/"
-	GCEComputeBetaAPIEndpoint  = "https://www.googleapis.com/compute/beta/"
-	GCEComputeAlphaAPIEndpoint = "https://www.googleapis.com/compute/alpha/"
 
 	replicaZoneURITemplateSingleZone = "projects/%s/zones/%s" // {gce.projectID}/zones/{disk.Zone}
 )
@@ -91,7 +87,7 @@ type ConfigGlobal struct {
 	Zone      string `gcfg:"zone"`
 }
 
-func CreateCloudProvider(ctx context.Context, vendorVersion string, configPath string) (*CloudProvider, error) {
+func CreateCloudProvider(ctx context.Context, vendorVersion string, configPath string, computeEndpoint string) (*CloudProvider, error) {
 	configFile, err := readConfig(configPath)
 	if err != nil {
 		return nil, err
@@ -106,19 +102,19 @@ func CreateCloudProvider(ctx context.Context, vendorVersion string, configPath s
 		return nil, err
 	}
 
-	svc, err := createCloudService(ctx, vendorVersion, tokenSource)
+	svc, err := createCloudService(ctx, vendorVersion, tokenSource, computeEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	betasvc, err := createBetaCloudService(ctx, vendorVersion, tokenSource)
+	betasvc, err := createBetaCloudService(ctx, vendorVersion, tokenSource, computeEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
 	project, zone, err := getProjectAndZone(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting Project and Zone: %v", err)
+		return nil, fmt.Errorf("Failed getting Project and Zone: %w", err)
 	}
 
 	return &CloudProvider{
@@ -166,23 +162,29 @@ func readConfig(configPath string) (*ConfigFile, error) {
 
 	reader, err := os.Open(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't open cloud provider configuration at %s: %v", configPath, err)
+		return nil, fmt.Errorf("couldn't open cloud provider configuration at %s: %w", configPath, err)
 	}
 	defer reader.Close()
 
 	cfg := &ConfigFile{}
 	if err := gcfg.FatalOnly(gcfg.ReadInto(cfg, reader)); err != nil {
-		return nil, fmt.Errorf("couldn't read cloud provider configuration at %s: %v", configPath, err)
+		return nil, fmt.Errorf("couldn't read cloud provider configuration at %s: %w", configPath, err)
 	}
 	return cfg, nil
 }
 
-func createBetaCloudService(ctx context.Context, vendorVersion string, tokenSource oauth2.TokenSource) (*computebeta.Service, error) {
+func createBetaCloudService(ctx context.Context, vendorVersion string, tokenSource oauth2.TokenSource, computeEndpoint string) (*computebeta.Service, error) {
 	client, err := newOauthClient(ctx, tokenSource)
 	if err != nil {
 		return nil, err
 	}
-	service, err := computebeta.NewService(ctx, option.WithHTTPClient(client))
+
+	computeOpts := []option.ClientOption{option.WithHTTPClient(client)}
+	if computeEndpoint != "" {
+		betaEndpoint := fmt.Sprintf("%s/compute/beta/", computeEndpoint)
+		computeOpts = append(computeOpts, option.WithEndpoint(betaEndpoint))
+	}
+	service, err := computebeta.NewService(ctx, computeOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -190,17 +192,23 @@ func createBetaCloudService(ctx context.Context, vendorVersion string, tokenSour
 	return service, nil
 }
 
-func createCloudService(ctx context.Context, vendorVersion string, tokenSource oauth2.TokenSource) (*compute.Service, error) {
-	svc, err := createCloudServiceWithDefaultServiceAccount(ctx, vendorVersion, tokenSource)
+func createCloudService(ctx context.Context, vendorVersion string, tokenSource oauth2.TokenSource, computeEndpoint string) (*compute.Service, error) {
+	svc, err := createCloudServiceWithDefaultServiceAccount(ctx, vendorVersion, tokenSource, computeEndpoint)
 	return svc, err
 }
 
-func createCloudServiceWithDefaultServiceAccount(ctx context.Context, vendorVersion string, tokenSource oauth2.TokenSource) (*compute.Service, error) {
+func createCloudServiceWithDefaultServiceAccount(ctx context.Context, vendorVersion string, tokenSource oauth2.TokenSource, computeEndpoint string) (*compute.Service, error) {
 	client, err := newOauthClient(ctx, tokenSource)
 	if err != nil {
 		return nil, err
 	}
-	service, err := compute.New(client)
+
+	computeOpts := []option.ClientOption{option.WithHTTPClient(client)}
+	if computeEndpoint != "" {
+		v1Endpoint := fmt.Sprintf("%s/compute/v1/", computeEndpoint)
+		computeOpts = append(computeOpts, option.WithEndpoint(v1Endpoint))
+	}
+	service, err := compute.NewService(ctx, computeOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +219,7 @@ func createCloudServiceWithDefaultServiceAccount(ctx context.Context, vendorVers
 func newOauthClient(ctx context.Context, tokenSource oauth2.TokenSource) (*http.Client, error) {
 	if err := wait.PollImmediate(5*time.Second, 30*time.Second, func() (bool, error) {
 		if _, err := tokenSource.Token(); err != nil {
-			klog.Errorf("error fetching initial token: %v", err)
+			klog.Errorf("error fetching initial token: %v", err.Error())
 			return false, nil
 		}
 		return true, nil

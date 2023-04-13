@@ -18,22 +18,24 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
+	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/deviceutils"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
-	mountmanager "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/mount-manager"
 	testutils "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/test/e2e/utils"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/test/remote"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/iterator"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 	fieldmask "google.golang.org/genproto/protobuf/field_mask"
@@ -42,12 +44,15 @@ import (
 const (
 	testNamePrefix = "gcepd-csi-e2e-"
 
-	defaultSizeGb      int64 = 5
-	defaultRepdSizeGb  int64 = 200
-	defaultMwSizeGb    int64 = 200
-	readyState               = "READY"
-	standardDiskType         = "pd-standard"
-	defaultVolumeLimit int64 = 127
+	defaultSizeGb              int64 = 5
+	defaultRepdSizeGb          int64 = 200
+	defaultMwSizeGb            int64 = 200
+	defaultVolumeLimit         int64 = 127
+	readyState                       = "READY"
+	standardDiskType                 = "pd-standard"
+	extremeDiskType                  = "pd-extreme"
+	provisionedIOPSOnCreate          = "100000"
+	provisionedIOPSOnCreateInt       = int64(100000)
 
 	defaultEpsilon = 500000000 // 500M
 )
@@ -70,7 +75,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		instance := testContext.Instance
 
 		// Create Disk
-		volName, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 
 		defer func() {
 			// Delete Disk
@@ -95,7 +100,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		instance := testContext.Instance
 
 		// Create Disk
-		volName, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 
 		defer func() {
 			// Delete Disk
@@ -115,13 +120,13 @@ var _ = Describe("GCE PD CSI Driver", func() {
 			// Detach Disk
 			err = client.ControllerUnpublishVolume(volID, instance.GetNodeID())
 			if err != nil {
-				klog.Errorf("Failed to detach disk: %v", err)
+				klog.Errorf("Failed to detach disk: %w", err)
 			}
 
 		}()
 
 		// MESS UP THE symlink
-		devicePaths := mountmanager.NewDeviceUtils().GetDiskByIdPaths(volName, "")
+		devicePaths := deviceutils.NewDeviceUtils().GetDiskByIdPaths(volName, "")
 		for _, devicePath := range devicePaths {
 			err = testutils.RmAll(instance, devicePath)
 			Expect(err).To(BeNil(), "failed to remove /dev/by-id folder")
@@ -149,12 +154,12 @@ var _ = Describe("GCE PD CSI Driver", func() {
 			// Unstage Disk
 			err = client.NodeUnstageVolume(volID, stageDir)
 			if err != nil {
-				klog.Errorf("Failed to unstage volume: %v", err)
+				klog.Errorf("Failed to unstage volume: %w", err)
 			}
 			fp := filepath.Join("/tmp/", volName)
 			err = testutils.RmAll(instance, fp)
 			if err != nil {
-				klog.Errorf("Failed to rm file path %s: %v", fp, err)
+				klog.Errorf("Failed to rm file path %s: %w", fp, err)
 			}
 		}()
 	})
@@ -167,7 +172,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		instance := testContext.Instance
 
 		// Create Disk
-		volName, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 
 		defer func() {
 			// Delete Disk
@@ -187,13 +192,13 @@ var _ = Describe("GCE PD CSI Driver", func() {
 			// Detach Disk
 			err = client.ControllerUnpublishVolume(volID, instance.GetNodeID())
 			if err != nil {
-				klog.Errorf("Failed to detach disk: %v", err)
+				klog.Errorf("Failed to detach disk: %w", err)
 			}
 
 		}()
 
 		// DELETE THE symlink
-		devicePaths := mountmanager.NewDeviceUtils().GetDiskByIdPaths(volName, "")
+		devicePaths := deviceutils.NewDeviceUtils().GetDiskByIdPaths(volName, "")
 		for _, devicePath := range devicePaths {
 			err = testutils.RmAll(instance, devicePath)
 			Expect(err).To(BeNil(), "failed to remove /dev/by-id folder")
@@ -219,12 +224,12 @@ var _ = Describe("GCE PD CSI Driver", func() {
 			// Unstage Disk
 			err = client.NodeUnstageVolume(volID, stageDir)
 			if err != nil {
-				klog.Errorf("Failed to unstage volume: %v", err)
+				klog.Errorf("Failed to unstage volume: %w", err)
 			}
 			fp := filepath.Join("/tmp/", volName)
 			err = testutils.RmAll(instance, fp)
 			if err != nil {
-				klog.Errorf("Failed to rm file path %s: %v", fp, err)
+				klog.Errorf("Failed to rm file path %s: %w", fp, err)
 			}
 		}()
 	})
@@ -256,35 +261,75 @@ var _ = Describe("GCE PD CSI Driver", func() {
 			_, err = computeService.Disks.Get(p, zone, volName).Do()
 			Expect(err).To(BeNil(), "Could not find disk in correct zone")
 		}
-
 	})
 
-	It("Should complete entire disk lifecycle with underspecified volume ID", func() {
-		testContext := getRandomTestContext()
+	DescribeTable("Should complete entire disk lifecycle with underspecified volume ID",
+		func(diskType string) {
+			testContext := getRandomTestContext()
 
-		p, z, _ := testContext.Instance.GetIdentity()
-		client := testContext.Client
-		instance := testContext.Instance
+			p, z, _ := testContext.Instance.GetIdentity()
+			client := testContext.Client
+			instance := testContext.Instance
 
-		volName, _ := createAndValidateUniqueZonalDisk(client, p, z)
+			volName, _ := createAndValidateUniqueZonalDisk(client, p, z, diskType)
 
-		underSpecifiedID := common.GenerateUnderspecifiedVolumeID(volName, true /* isZonal */)
+			underSpecifiedID := common.GenerateUnderspecifiedVolumeID(volName, true /* isZonal */)
 
-		defer func() {
-			// Delete Disk
-			err := client.DeleteVolume(underSpecifiedID)
-			Expect(err).To(BeNil(), "DeleteVolume failed")
+			defer func() {
+				// Delete Disk
+				err := client.DeleteVolume(underSpecifiedID)
+				Expect(err).To(BeNil(), "DeleteVolume failed")
 
-			// Validate Disk Deleted
-			_, err = computeService.Disks.Get(p, z, volName).Do()
-			Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
-		}()
+				// Validate Disk Deleted
+				_, err = computeService.Disks.Get(p, z, volName).Do()
+				Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
+			}()
 
-		// Attach Disk
-		err := testAttachWriteReadDetach(underSpecifiedID, volName, instance, client, false /* readOnly */)
-		Expect(err).To(BeNil(), "Failed to go through volume lifecycle")
+			// Attach Disk
+			err := testAttachWriteReadDetach(underSpecifiedID, volName, instance, client, false /* readOnly */)
+			Expect(err).To(BeNil(), "Failed to go through volume lifecycle")
+		},
+		Entry("on pd-standard", standardDiskType),
+		Entry("on pd-extreme", extremeDiskType),
+	)
 
-	})
+	DescribeTable("Should complete publish/unpublish lifecycle with underspecified volume ID and missing volume",
+		func(diskType string) {
+			testContext := getRandomTestContext()
+
+			p, z, _ := testContext.Instance.GetIdentity()
+			client := testContext.Client
+			instance := testContext.Instance
+
+			// Create Disk
+			volName, _ := createAndValidateUniqueZonalDisk(client, p, z, diskType)
+			underSpecifiedID := common.GenerateUnderspecifiedVolumeID(volName, true /* isZonal */)
+
+			defer func() {
+				// Detach Disk
+				err := instance.DetachDisk(volName)
+				Expect(err).To(BeNil(), "DetachDisk failed")
+
+				// Delete Disk
+				err = client.DeleteVolume(underSpecifiedID)
+				Expect(err).To(BeNil(), "DeleteVolume failed")
+
+				// Validate Disk Deleted
+				_, err = computeService.Disks.Get(p, z, volName).Do()
+				Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
+
+				// Unpublish Disk
+				err = client.ControllerUnpublishVolume(underSpecifiedID, instance.GetNodeID())
+				Expect(err).To(BeNil(), "ControllerUnpublishVolume failed")
+			}()
+
+			// Attach Disk
+			err := client.ControllerPublishVolume(underSpecifiedID, instance.GetNodeID())
+			Expect(err).To(BeNil(), "ControllerPublishVolume failed")
+		},
+		Entry("on pd-standard", standardDiskType),
+		Entry("on pd-extreme", extremeDiskType),
+	)
 
 	It("Should successfully create RePD in two zones in the drivers region when none are specified", func() {
 		Expect(testContexts).ToNot(BeEmpty())
@@ -331,80 +376,86 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		}()
 	})
 
-	It("Should create and delete disk with default zone", func() {
-		Expect(testContexts).ToNot(BeEmpty())
-		testContext := getRandomTestContext()
+	DescribeTable("Should create and delete disk with default zone",
+		func(diskType string) {
+			Expect(testContexts).ToNot(BeEmpty())
+			testContext := getRandomTestContext()
 
-		p, z, _ := testContext.Instance.GetIdentity()
-		client := testContext.Client
+			p, z, _ := testContext.Instance.GetIdentity()
+			client := testContext.Client
 
-		// Create Disk
-		volName := testNamePrefix + string(uuid.NewUUID())
-		volID, err := client.CreateVolume(volName, nil, defaultSizeGb, nil, nil)
-		Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
+			// Create Disk
+			disk := typeToDisk[diskType]
+			volName := testNamePrefix + string(uuid.NewUUID())
+			volID, err := client.CreateVolume(volName, disk.params, defaultSizeGb, nil, nil)
+			Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
 
-		// Validate Disk Created
-		cloudDisk, err := computeService.Disks.Get(p, z, volName).Do()
-		Expect(err).To(BeNil(), "Could not get disk from cloud directly")
-		Expect(cloudDisk.Type).To(ContainSubstring(standardDiskType))
-		Expect(cloudDisk.Status).To(Equal(readyState))
-		Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
-		Expect(cloudDisk.Name).To(Equal(volName))
+			// Validate Disk Created
+			cloudDisk, err := computeService.Disks.Get(p, z, volName).Do()
+			Expect(err).To(BeNil(), "Could not get disk from cloud directly")
+			Expect(cloudDisk.Status).To(Equal(readyState))
+			Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
+			Expect(cloudDisk.Name).To(Equal(volName))
+			disk.validate(cloudDisk)
 
-		defer func() {
-			// Delete Disk
-			client.DeleteVolume(volID)
-			Expect(err).To(BeNil(), "DeleteVolume failed")
+			defer func() {
+				// Delete Disk
+				client.DeleteVolume(volID)
+				Expect(err).To(BeNil(), "DeleteVolume failed")
 
-			// Validate Disk Deleted
-			_, err = computeService.Disks.Get(p, z, volName).Do()
-			Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
-		}()
-	})
+				// Validate Disk Deleted
+				_, err = computeService.Disks.Get(p, z, volName).Do()
+				Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
+			}()
+		},
+		Entry("on pd-standard", standardDiskType),
+		Entry("on pd-extreme", extremeDiskType),
+	)
 
-	It("Should create and delete disk with labels", func() {
-		Expect(testContexts).ToNot(BeEmpty())
-		testContext := getRandomTestContext()
+	DescribeTable("Should create and delete disk with labels",
+		func(diskType string) {
+			Expect(testContexts).ToNot(BeEmpty())
+			testContext := getRandomTestContext()
 
-		p, z, _ := testContext.Instance.GetIdentity()
-		client := testContext.Client
+			p, z, _ := testContext.Instance.GetIdentity()
+			client := testContext.Client
 
-		// Create Disk
-		volName := testNamePrefix + string(uuid.NewUUID())
-		params := map[string]string{
-			common.ParameterKeyLabels: "key1=value1,key2=value2",
-		}
-		volID, err := client.CreateVolume(volName, params, defaultSizeGb, nil, nil)
-		Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
+			// Create Disk
+			disk := typeToDisk[diskType]
+			volName := testNamePrefix + string(uuid.NewUUID())
+			params := merge(disk.params, map[string]string{
+				common.ParameterKeyLabels: "key1=value1,key2=value2",
+			})
+			volID, err := client.CreateVolume(volName, params, defaultSizeGb, nil, nil)
+			Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
 
-		// Validate Disk Created
-		cloudDisk, err := computeService.Disks.Get(p, z, volName).Do()
-		Expect(err).To(BeNil(), "Could not get disk from cloud directly")
-		Expect(cloudDisk.Type).To(ContainSubstring(standardDiskType))
-		Expect(cloudDisk.Status).To(Equal(readyState))
-		Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
-		Expect(cloudDisk.Labels).To(Equal(map[string]string{
-			"key1": "value1",
-			"key2": "value2",
-			// The label below is added as an --extra-label driver command line argument.
-			testutils.DiskLabelKey: testutils.DiskLabelValue,
-		}))
-		Expect(cloudDisk.Name).To(Equal(volName))
+			// Validate Disk Created
+			cloudDisk, err := computeService.Disks.Get(p, z, volName).Do()
+			Expect(err).To(BeNil(), "Could not get disk from cloud directly")
+			Expect(cloudDisk.Status).To(Equal(readyState))
+			Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
+			Expect(cloudDisk.Labels).To(Equal(map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				// The label below is added as an --extra-label driver command line argument.
+				testutils.DiskLabelKey: testutils.DiskLabelValue,
+			}))
+			Expect(cloudDisk.Name).To(Equal(volName))
+			disk.validate(cloudDisk)
 
-		defer func() {
-			// Delete Disk
-			err := client.DeleteVolume(volID)
-			Expect(err).To(BeNil(), "DeleteVolume failed")
+			defer func() {
+				// Delete Disk
+				err := client.DeleteVolume(volID)
+				Expect(err).To(BeNil(), "DeleteVolume failed")
 
-			// Validate Disk Deleted
-			_, err = computeService.Disks.Get(p, z, volName).Do()
-			Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
-		}()
-	})
-
-	// Test volume already exists idempotency
-
-	// Test volume with op pending
+				// Validate Disk Deleted
+				_, err = computeService.Disks.Get(p, z, volName).Do()
+				Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
+			}()
+		},
+		Entry("on pd-standard", standardDiskType),
+		Entry("on pd-extreme", extremeDiskType),
+	)
 
 	It("Should create and delete snapshot for the volume with default zone", func() {
 		Expect(testContexts).ToNot(BeEmpty())
@@ -413,7 +464,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		p, z, _ := testContext.Instance.GetIdentity()
 		client := testContext.Client
 
-		volName, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 
 		// Create Snapshot
 		snapshotName := testNamePrefix + string(uuid.NewUUID())
@@ -454,161 +505,119 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		}()
 	})
 
-	It("Should create CMEK key, go through volume lifecycle, validate behavior on key revoke and restore", func() {
-		ctx := context.Background()
-		Expect(testContexts).ToNot(BeEmpty())
-		testContext := getRandomTestContext()
+	DescribeTable("Should create CMEK key, go through volume lifecycle, validate behavior on key revoke and restore",
+		func(diskType string) {
+			ctx := context.Background()
+			Expect(testContexts).ToNot(BeEmpty())
+			testContext := getRandomTestContext()
 
-		controllerInstance := testContext.Instance
-		controllerClient := testContext.Client
+			controllerInstance := testContext.Instance
+			controllerClient := testContext.Client
 
-		p, z, _ := controllerInstance.GetIdentity()
-		locationID := "global"
+			p, z, _ := controllerInstance.GetIdentity()
+			locationID := "global"
 
-		// The resource name of the key rings.
-		parentName := fmt.Sprintf("projects/%s/locations/%s", p, locationID)
-		keyRingId := "gce-pd-csi-test-ring"
+			// The resource name of the key rings.
+			parentName := fmt.Sprintf("projects/%s/locations/%s", p, locationID)
+			keyRingId := "gce-pd-csi-test-ring"
 
-		// Create KeyRing
-		ringReq := &kmspb.CreateKeyRingRequest{
-			Parent:    parentName,
-			KeyRingId: keyRingId,
-		}
-		keyRing, err := kmsClient.CreateKeyRing(ctx, ringReq)
-		if !gce.IsGCEError(err, "alreadyExists") {
-			getKeyRingReq := &kmspb.GetKeyRingRequest{
-				Name: fmt.Sprintf("%s/keyRings/%s", parentName, keyRingId),
-			}
-			keyRing, err = kmsClient.GetKeyRing(ctx, getKeyRingReq)
+			key, keyVersions := setupKeyRing(ctx, parentName, keyRingId)
 
-		}
-		Expect(err).To(BeNil(), "Failed to create or get key ring %v", keyRingId)
-
-		// Create CryptoKey in KeyRing
-		keyId := "test-key-" + string(uuid.NewUUID())
-		keyReq := &kmspb.CreateCryptoKeyRequest{
-			Parent:      keyRing.Name,
-			CryptoKeyId: keyId,
-			CryptoKey: &kmspb.CryptoKey{
-				Purpose: kmspb.CryptoKey_ENCRYPT_DECRYPT,
-				VersionTemplate: &kmspb.CryptoKeyVersionTemplate{
-					Algorithm: kmspb.CryptoKeyVersion_GOOGLE_SYMMETRIC_ENCRYPTION,
-				},
-			},
-		}
-		key, err := kmsClient.CreateCryptoKey(ctx, keyReq)
-		Expect(err).To(BeNil(), "Failed to create crypto key %v in key ring %v", keyId, keyRing.Name)
-
-		keyVersions := []string{}
-		keyVersionReq := &kmspb.ListCryptoKeyVersionsRequest{
-			Parent: key.Name,
-		}
-
-		it := kmsClient.ListCryptoKeyVersions(ctx, keyVersionReq)
-
-		for {
-			keyVersion, err := it.Next()
-			if err == iterator.Done {
-				break
-			}
-			Expect(err).To(BeNil(), "Failed to list crypto key versions")
-
-			keyVersions = append(keyVersions, keyVersion.Name)
-		}
-
-		// Defer deletion of all key versions
-		// https://cloud.google.com/kms/docs/destroy-restore
-		defer func() {
-
-			for _, keyVersion := range keyVersions {
-				destroyKeyReq := &kmspb.DestroyCryptoKeyVersionRequest{
-					Name: keyVersion,
+			// Defer deletion of all key versions
+			// https://cloud.google.com/kms/docs/destroy-restore
+			defer func() {
+				for _, keyVersion := range keyVersions {
+					destroyKeyReq := &kmspb.DestroyCryptoKeyVersionRequest{
+						Name: keyVersion,
+					}
+					_, err := kmsClient.DestroyCryptoKeyVersion(ctx, destroyKeyReq)
+					Expect(err).To(BeNil(), "Failed to destroy crypto key version: %v", keyVersion)
 				}
-				_, err = kmsClient.DestroyCryptoKeyVersion(ctx, destroyKeyReq)
-				Expect(err).To(BeNil(), "Failed to destroy crypto key version: %v", keyVersion)
-			}
+			}()
 
-		}()
-
-		// Go through volume lifecycle using CMEK-ed PD
-		// Create Disk
-		volName := testNamePrefix + string(uuid.NewUUID())
-		volID, err := controllerClient.CreateVolume(volName, map[string]string{
-			common.ParameterKeyDiskEncryptionKmsKey: key.Name,
-		}, defaultSizeGb,
-			&csi.TopologyRequirement{
+			// Go through volume lifecycle using CMEK-ed PD Create Disk
+			disk := typeToDisk[diskType]
+			volName := testNamePrefix + string(uuid.NewUUID())
+			params := merge(disk.params, map[string]string{
+				common.ParameterKeyDiskEncryptionKmsKey: key.Name,
+			})
+			topology := &csi.TopologyRequirement{
 				Requisite: []*csi.Topology{
 					{
 						Segments: map[string]string{common.TopologyKeyZone: z},
 					},
 				},
-			}, nil)
-		Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
-
-		// Validate Disk Created
-		cloudDisk, err := computeService.Disks.Get(p, z, volName).Do()
-		Expect(err).To(BeNil(), "Could not get disk from cloud directly")
-		Expect(cloudDisk.Type).To(ContainSubstring(standardDiskType))
-		Expect(cloudDisk.Status).To(Equal(readyState))
-		Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
-		Expect(cloudDisk.Name).To(Equal(volName))
-
-		defer func() {
-			// Delete Disk
-			err = controllerClient.DeleteVolume(volID)
-			Expect(err).To(BeNil(), "DeleteVolume failed")
-
-			// Validate Disk Deleted
-			_, err = computeService.Disks.Get(p, z, volName).Do()
-			Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
-		}()
-
-		// Test disk works
-		err = testAttachWriteReadDetach(volID, volName, controllerInstance, controllerClient, false /* readOnly */)
-		Expect(err).To(BeNil(), "Failed to go through volume lifecycle before revoking CMEK key")
-
-		// Revoke CMEK key
-		// https://cloud.google.com/kms/docs/enable-disable
-
-		for _, keyVersion := range keyVersions {
-			disableReq := &kmspb.UpdateCryptoKeyVersionRequest{
-				CryptoKeyVersion: &kmspb.CryptoKeyVersion{
-					Name:  keyVersion,
-					State: kmspb.CryptoKeyVersion_DISABLED,
-				},
-				UpdateMask: &fieldmask.FieldMask{
-					Paths: []string{"state"},
-				},
 			}
-			_, err = kmsClient.UpdateCryptoKeyVersion(ctx, disableReq)
-			Expect(err).To(BeNil(), "Failed to disable crypto key")
-		}
+			volID, err := controllerClient.CreateVolume(volName, params, defaultSizeGb, topology, nil)
+			Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
 
-		// Make sure attach of PD fails
-		err = testAttachWriteReadDetach(volID, volName, controllerInstance, controllerClient, false /* readOnly */)
-		Expect(err).ToNot(BeNil(), "Volume lifecycle should have failed, but succeeded")
+			// Validate Disk Created
+			cloudDisk, err := computeService.Disks.Get(p, z, volName).Do()
+			Expect(err).To(BeNil(), "Could not get disk from cloud directly")
+			Expect(cloudDisk.Status).To(Equal(readyState))
+			Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
+			Expect(cloudDisk.Name).To(Equal(volName))
+			disk.validate(cloudDisk)
 
-		// Restore CMEK key
-		for _, keyVersion := range keyVersions {
-			enableReq := &kmspb.UpdateCryptoKeyVersionRequest{
-				CryptoKeyVersion: &kmspb.CryptoKeyVersion{
-					Name:  keyVersion,
-					State: kmspb.CryptoKeyVersion_ENABLED,
-				},
-				UpdateMask: &fieldmask.FieldMask{
-					Paths: []string{"state"},
-				},
+			defer func() {
+				// Delete Disk
+				err = controllerClient.DeleteVolume(volID)
+				Expect(err).To(BeNil(), "DeleteVolume failed")
+
+				// Validate Disk Deleted
+				_, err = computeService.Disks.Get(p, z, volName).Do()
+				Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
+			}()
+
+			// Test disk works
+			err = testAttachWriteReadDetach(volID, volName, controllerInstance, controllerClient, false /* readOnly */)
+			Expect(err).To(BeNil(), "Failed to go through volume lifecycle before revoking CMEK key")
+
+			// Revoke CMEK key
+			// https://cloud.google.com/kms/docs/enable-disable
+
+			for _, keyVersion := range keyVersions {
+				disableReq := &kmspb.UpdateCryptoKeyVersionRequest{
+					CryptoKeyVersion: &kmspb.CryptoKeyVersion{
+						Name:  keyVersion,
+						State: kmspb.CryptoKeyVersion_DISABLED,
+					},
+					UpdateMask: &fieldmask.FieldMask{
+						Paths: []string{"state"},
+					},
+				}
+				_, err = kmsClient.UpdateCryptoKeyVersion(ctx, disableReq)
+				Expect(err).To(BeNil(), "Failed to disable crypto key")
 			}
-			_, err = kmsClient.UpdateCryptoKeyVersion(ctx, enableReq)
-			Expect(err).To(BeNil(), "Failed to enable crypto key")
-		}
 
-		// The controller publish failure in above step would set a backoff condition on the node. Wait suffcient amount of time for the driver to accept new controller publish requests.
-		time.Sleep(time.Second)
-		// Make sure attach of PD succeeds
-		err = testAttachWriteReadDetach(volID, volName, controllerInstance, controllerClient, false /* readOnly */)
-		Expect(err).To(BeNil(), "Failed to go through volume lifecycle after restoring CMEK key")
-	})
+			// Make sure attach of PD fails
+			err = testAttachWriteReadDetach(volID, volName, controllerInstance, controllerClient, false /* readOnly */)
+			Expect(err).ToNot(BeNil(), "Volume lifecycle should have failed, but succeeded")
+
+			// Restore CMEK key
+			for _, keyVersion := range keyVersions {
+				enableReq := &kmspb.UpdateCryptoKeyVersionRequest{
+					CryptoKeyVersion: &kmspb.CryptoKeyVersion{
+						Name:  keyVersion,
+						State: kmspb.CryptoKeyVersion_ENABLED,
+					},
+					UpdateMask: &fieldmask.FieldMask{
+						Paths: []string{"state"},
+					},
+				}
+				_, err = kmsClient.UpdateCryptoKeyVersion(ctx, enableReq)
+				Expect(err).To(BeNil(), "Failed to enable crypto key")
+			}
+
+			// The controller publish failure in above step would set a backoff condition on the node. Wait suffcient amount of time for the driver to accept new controller publish requests.
+			time.Sleep(time.Second)
+			// Make sure attach of PD succeeds
+			err = testAttachWriteReadDetach(volID, volName, controllerInstance, controllerClient, false /* readOnly */)
+			Expect(err).To(BeNil(), "Failed to go through volume lifecycle after restoring CMEK key")
+		},
+		Entry("on pd-standard", standardDiskType),
+		Entry("on pd-extreme", extremeDiskType),
+	)
 
 	It("Should create disks, attach them places, and verify List returns correct results", func() {
 		Expect(testContexts).ToNot(BeEmpty())
@@ -619,10 +628,10 @@ var _ = Describe("GCE PD CSI Driver", func() {
 
 		nodeID := testContext.Instance.GetNodeID()
 
-		_, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		_, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 		defer deleteVolumeOrError(client, volID)
 
-		_, secondVolID := createAndValidateUniqueZonalDisk(client, p, z)
+		_, secondVolID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 		defer deleteVolumeOrError(client, secondVolID)
 
 		// Attach volID to current instance
@@ -721,7 +730,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		client := testContext.Client
 		instance := testContext.Instance
 
-		volName, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 
 		defer func() {
 			// Delete Disk
@@ -736,7 +745,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		verifyVolumeStats := func(a verifyArgs) error {
 			available, capacity, used, inodesFree, inodes, inodesUsed, err := client.NodeGetVolumeStats(volID, a.publishDir)
 			if err != nil {
-				return fmt.Errorf("failed to get node volume stats: %v", err)
+				return fmt.Errorf("failed to get node volume stats: %v", err.Error())
 			}
 			if available != 0 || capacity != common.GbToBytes(defaultSizeGb) || used != 0 ||
 				inodesFree != 0 || inodes != 0 || inodesUsed != 0 {
@@ -758,7 +767,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		client := testContext.Client
 		instance := testContext.Instance
 
-		volName, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 
 		defer func() {
 			// Delete Disk
@@ -773,7 +782,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		verifyVolumeStats := func(a verifyArgs) error {
 			available, capacity, used, inodesFree, inodes, inodesUsed, err := client.NodeGetVolumeStats(volID, a.publishDir)
 			if err != nil {
-				return fmt.Errorf("failed to get node volume stats: %v", err)
+				return fmt.Errorf("failed to get node volume stats: %v", err.Error())
 			}
 			if !equalWithinEpsilon(available, common.GbToBytes(defaultSizeGb), defaultEpsilon) || !equalWithinEpsilon(capacity, common.GbToBytes(defaultSizeGb), defaultEpsilon) || !equalWithinEpsilon(used, 0, defaultEpsilon) ||
 				inodesFree == 0 || inodes == 0 || inodesUsed == 0 {
@@ -800,7 +809,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		zone := "us-east1-a"
 
 		// Create and Validate Disk
-		volName, volID := createAndValidateUniqueZonalMultiWriterDisk(client, p, zone)
+		volName, volID := createAndValidateUniqueZonalMultiWriterDisk(client, p, zone, standardDiskType)
 
 		defer func() {
 			// Delete Disk
@@ -822,7 +831,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		instance := testContext.Instance
 
 		// Create and Validate Disk
-		volName, volID := createAndValidateUniqueZonalMultiWriterDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalMultiWriterDisk(client, p, z, standardDiskType)
 
 		defer func() {
 			// Delete Disk
@@ -839,14 +848,14 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		writeFunc := func(a verifyArgs) error {
 			err := testutils.WriteBlock(instance, a.publishDir, testFileContents)
 			if err != nil {
-				return fmt.Errorf("Failed to write file: %v", err)
+				return fmt.Errorf("Failed to write file: %v", err.Error())
 			}
 			return nil
 		}
 		verifyReadFunc := func(a verifyArgs) error {
 			readContents, err := testutils.ReadBlock(instance, a.publishDir, len(testFileContents))
 			if err != nil {
-				return fmt.Errorf("ReadFile failed with error: %v", err)
+				return fmt.Errorf("ReadFile failed with error: %v", err.Error())
 			}
 			if strings.TrimSpace(string(readContents)) != testFileContents {
 				return fmt.Errorf("wanted test file content: %s, got content: %s", testFileContents, readContents)
@@ -857,42 +866,49 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		Expect(err).To(BeNil(), "Failed to go through volume lifecycle")
 	})
 
-	It("Should successfully create disk with PVC/PV tags", func() {
-		Expect(testContexts).ToNot(BeEmpty())
-		testContext := getRandomTestContext()
+	DescribeTable("Should successfully create disk with PVC/PV tags",
+		func(diskType string) {
+			Expect(testContexts).ToNot(BeEmpty())
+			testContext := getRandomTestContext()
 
-		controllerInstance := testContext.Instance
-		controllerClient := testContext.Client
+			controllerInstance := testContext.Instance
+			controllerClient := testContext.Client
 
-		p, z, _ := controllerInstance.GetIdentity()
+			p, z, _ := controllerInstance.GetIdentity()
 
-		// Create Disk
-		volName := testNamePrefix + string(uuid.NewUUID())
-		volID, err := controllerClient.CreateVolume(volName, map[string]string{
-			common.ParameterKeyPVCName:      "test-pvc",
-			common.ParameterKeyPVCNamespace: "test-pvc-namespace",
-			common.ParameterKeyPVName:       "test-pv-name",
-		}, defaultSizeGb, nil /* topReq */, nil)
-		Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
+			// Create Disk
+			disk := typeToDisk[diskType]
+			volName := testNamePrefix + string(uuid.NewUUID())
+			params := merge(disk.params, map[string]string{
+				common.ParameterKeyPVCName:      "test-pvc",
+				common.ParameterKeyPVCNamespace: "test-pvc-namespace",
+				common.ParameterKeyPVName:       "test-pv-name",
+			})
+			volID, err := controllerClient.CreateVolume(volName, params, defaultSizeGb, nil /* topReq */, nil)
+			Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
 
-		// Validate Disk Created
-		cloudDisk, err := computeService.Disks.Get(p, z, volName).Do()
-		Expect(err).To(BeNil(), "Could not get disk from cloud directly")
-		Expect(cloudDisk.Type).To(ContainSubstring(standardDiskType))
-		Expect(cloudDisk.Status).To(Equal(readyState))
-		Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
-		Expect(cloudDisk.Name).To(Equal(volName))
-		Expect(cloudDisk.Description).To(Equal("{\"kubernetes.io/created-for/pv/name\":\"test-pv-name\",\"kubernetes.io/created-for/pvc/name\":\"test-pvc\",\"kubernetes.io/created-for/pvc/namespace\":\"test-pvc-namespace\",\"storage.gke.io/created-by\":\"pd.csi.storage.gke.io\"}"))
-		defer func() {
-			// Delete Disk
-			controllerClient.DeleteVolume(volID)
-			Expect(err).To(BeNil(), "DeleteVolume failed")
+			// Validate Disk Created
+			cloudDisk, err := computeService.Disks.Get(p, z, volName).Do()
+			Expect(err).To(BeNil(), "Could not get disk from cloud directly")
+			Expect(cloudDisk.Status).To(Equal(readyState))
+			Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
+			Expect(cloudDisk.Name).To(Equal(volName))
+			Expect(cloudDisk.Description).To(Equal("{\"kubernetes.io/created-for/pv/name\":\"test-pv-name\",\"kubernetes.io/created-for/pvc/name\":\"test-pvc\",\"kubernetes.io/created-for/pvc/namespace\":\"test-pvc-namespace\",\"storage.gke.io/created-by\":\"pd.csi.storage.gke.io\"}"))
+			disk.validate(cloudDisk)
 
-			// Validate Disk Deleted
-			_, err = computeService.Disks.Get(p, z, volName).Do()
-			Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
-		}()
-	})
+			defer func() {
+				// Delete Disk
+				controllerClient.DeleteVolume(volID)
+				Expect(err).To(BeNil(), "DeleteVolume failed")
+
+				// Validate Disk Deleted
+				_, err = computeService.Disks.Get(p, z, volName).Do()
+				Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
+			}()
+		},
+		Entry("on pd-standard", standardDiskType),
+		Entry("on pd-extreme", extremeDiskType),
+	)
 
 	// Use the region of the test location.
 	It("Should successfully create snapshot with storage locations", func() {
@@ -902,7 +918,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		client := testContext.Client
 
 		// Create Disk
-		volName, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 
 		// Create Snapshot
 		snapshotName := testNamePrefix + string(uuid.NewUUID())
@@ -963,7 +979,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		client := testContext.Client
 
 		// Create Disk
-		volName, volID := createAndValidateUniqueZonalDisk(client, p, z)
+		volName, volID := createAndValidateUniqueZonalDisk(client, p, z, standardDiskType)
 
 		// Create Snapshot
 		snapshotName := testNamePrefix + string(uuid.NewUUID())
@@ -1024,7 +1040,7 @@ var _ = Describe("GCE PD CSI Driver", func() {
 		p, z, _ := controllerInstance.GetIdentity()
 
 		// Create Source Disk
-		_, srcVolID := createAndValidateUniqueZonalDisk(controllerClient, p, z)
+		_, srcVolID := createAndValidateUniqueZonalDisk(controllerClient, p, z, standardDiskType)
 
 		// Create Disk
 		volName := testNamePrefix + string(uuid.NewUUID())
@@ -1123,6 +1139,40 @@ var _ = Describe("GCE PD CSI Driver", func() {
 			Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
 		}()
 	})
+
+	It("Should pass/fail if valid/invalid compute endpoint is passed in", func() {
+		// gets instance set up w/o compute-endpoint set from test setup
+		_, err := getRandomTestContext().Client.ListVolumes()
+		Expect(err).To(BeNil(), "no error expected when passed valid compute url")
+
+		zone := "us-central1-c"
+		nodeID := fmt.Sprintf("gce-pd-csi-e2e-%s", zone)
+		i, err := remote.SetupInstance(*project, *architecture, zone, nodeID, *machineType, *serviceAccount, *imageURL, computeService)
+
+		if err != nil {
+			klog.Fatalf("Failed to setup instance %v: %w", nodeID, err)
+		}
+
+		klog.Infof("Creating new driver and client for node %s\n", i.GetName())
+
+		// Create new driver and client w/ invalid endpoint
+		tcInvalid, err := testutils.GCEClientAndDriverSetup(i, "invalid-string")
+		if err != nil {
+			klog.Fatalf("Failed to set up Test Context for instance %v: %w", i.GetName(), err)
+		}
+
+		_, err = tcInvalid.Client.ListVolumes()
+		Expect(err.Error()).To(ContainSubstring("no such host"), "expected error when passed invalid compute url")
+
+		// Create new driver and client w/ valid, passed-in endpoint
+		tcValid, err := testutils.GCEClientAndDriverSetup(i, "https://compute.googleapis.com")
+		if err != nil {
+			klog.Fatalf("Failed to set up Test Context for instance %v: %w", i.GetName(), err)
+		}
+		_, err = tcValid.Client.ListVolumes()
+
+		Expect(err).To(BeNil(), "no error expected when passed valid compute url")
+	})
 })
 
 func equalWithinEpsilon(a, b, epsiolon int64) bool {
@@ -1132,11 +1182,11 @@ func equalWithinEpsilon(a, b, epsiolon int64) bool {
 	return b-a < epsiolon
 }
 
-func createAndValidateUniqueZonalDisk(client *remote.CsiClient, project, zone string) (volName, volID string) {
+func createAndValidateUniqueZonalDisk(client *remote.CsiClient, project, zone string, diskType string) (string, string) {
 	// Create Disk
-	var err error
-	volName = testNamePrefix + string(uuid.NewUUID())
-	volID, err = client.CreateVolume(volName, nil, defaultSizeGb,
+	disk := typeToDisk[diskType]
+	volName := testNamePrefix + string(uuid.NewUUID())
+	volID, err := client.CreateVolume(volName, disk.params, defaultSizeGb,
 		&csi.TopologyRequirement{
 			Requisite: []*csi.Topology{
 				{
@@ -1149,11 +1199,12 @@ func createAndValidateUniqueZonalDisk(client *remote.CsiClient, project, zone st
 	// Validate Disk Created
 	cloudDisk, err := computeService.Disks.Get(project, zone, volName).Do()
 	Expect(err).To(BeNil(), "Could not get disk from cloud directly")
-	Expect(cloudDisk.Type).To(ContainSubstring(standardDiskType))
 	Expect(cloudDisk.Status).To(Equal(readyState))
 	Expect(cloudDisk.SizeGb).To(Equal(defaultSizeGb))
 	Expect(cloudDisk.Name).To(Equal(volName))
-	return
+	disk.validate(cloudDisk)
+
+	return volName, volID
 }
 
 func deleteVolumeOrError(client *remote.CsiClient, volID string) {
@@ -1168,10 +1219,11 @@ func deleteVolumeOrError(client *remote.CsiClient, volID string) {
 	Expect(gce.IsGCEError(err, "notFound")).To(BeTrue(), "Expected disk to not be found")
 }
 
-func createAndValidateUniqueZonalMultiWriterDisk(client *remote.CsiClient, project, zone string) (string, string) {
+func createAndValidateUniqueZonalMultiWriterDisk(client *remote.CsiClient, project, zone string, diskType string) (string, string) {
 	// Create Disk
+	disk := typeToDisk[diskType]
 	volName := testNamePrefix + string(uuid.NewUUID())
-	volID, err := client.CreateVolumeWithCaps(volName, nil, defaultMwSizeGb,
+	volID, err := client.CreateVolumeWithCaps(volName, disk.params, defaultMwSizeGb,
 		&csi.TopologyRequirement{
 			Requisite: []*csi.Topology{
 				{
@@ -1192,19 +1244,108 @@ func createAndValidateUniqueZonalMultiWriterDisk(client *remote.CsiClient, proje
 	Expect(err).To(BeNil(), "CreateVolume failed with error: %v", err)
 
 	// Validate Disk Created
-	cloudDisk, err := computeAlphaService.Disks.Get(project, zone, volName).Do()
-	Expect(err).To(BeNil(), "Could not get disk from cloud directly")
-	Expect(cloudDisk.Type).To(ContainSubstring(standardDiskType))
+	cloudDisk, err := computeService.Disks.Get(project, zone, volName).Do()
+	Expect(err).To(BeNil(), "Failed to get cloud disk")
 	Expect(cloudDisk.Status).To(Equal(readyState))
 	Expect(cloudDisk.SizeGb).To(Equal(defaultMwSizeGb))
 	Expect(cloudDisk.Name).To(Equal(volName))
-	Expect(cloudDisk.MultiWriter).To(Equal(true))
+	disk.validate(cloudDisk)
+
+	alphaDisk, err := computeAlphaService.Disks.Get(project, zone, volName).Do()
+	Expect(err).To(BeNil(), "Failed to get cloud disk using alpha API")
+	Expect(alphaDisk.MultiWriter).To(Equal(true))
 
 	return volName, volID
 }
 
 func cleanSelfLink(selfLink string) string {
-	temp := strings.TrimPrefix(selfLink, gce.GCEComputeAPIEndpoint)
-	temp = strings.TrimPrefix(temp, gce.GCEComputeBetaAPIEndpoint)
-	return strings.TrimPrefix(temp, gce.GCEComputeAlphaAPIEndpoint)
+	r, _ := regexp.Compile("https:\\/\\/www.*apis.com\\/.*(v1|beta|alpha)\\/")
+	return r.ReplaceAllString(selfLink, "")
+}
+
+func setupKeyRing(ctx context.Context, parentName string, keyRingId string) (*kmspb.CryptoKey, []string) {
+	// Create KeyRing
+	ringReq := &kmspb.CreateKeyRingRequest{
+		Parent:    parentName,
+		KeyRingId: keyRingId,
+	}
+	keyRing, err := kmsClient.CreateKeyRing(ctx, ringReq)
+	if !gce.IsGCEError(err, "alreadyExists") {
+		getKeyRingReq := &kmspb.GetKeyRingRequest{
+			Name: fmt.Sprintf("%s/keyRings/%s", parentName, keyRingId),
+		}
+		keyRing, err = kmsClient.GetKeyRing(ctx, getKeyRingReq)
+
+	}
+	Expect(err).To(BeNil(), "Failed to create or get key ring %v", keyRingId)
+
+	// Create CryptoKey in KeyRing
+	keyId := "test-key-" + string(uuid.NewUUID())
+	keyReq := &kmspb.CreateCryptoKeyRequest{
+		Parent:      keyRing.Name,
+		CryptoKeyId: keyId,
+		CryptoKey: &kmspb.CryptoKey{
+			Purpose: kmspb.CryptoKey_ENCRYPT_DECRYPT,
+			VersionTemplate: &kmspb.CryptoKeyVersionTemplate{
+				Algorithm: kmspb.CryptoKeyVersion_GOOGLE_SYMMETRIC_ENCRYPTION,
+			},
+		},
+	}
+	key, err := kmsClient.CreateCryptoKey(ctx, keyReq)
+	Expect(err).To(BeNil(), "Failed to create crypto key %v in key ring %v", keyId, keyRing.Name)
+
+	keyVersions := []string{}
+	keyVersionReq := &kmspb.ListCryptoKeyVersionsRequest{
+		Parent: key.Name,
+	}
+
+	it := kmsClient.ListCryptoKeyVersions(ctx, keyVersionReq)
+
+	for {
+		keyVersion, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		Expect(err).To(BeNil(), "Failed to list crypto key versions")
+
+		keyVersions = append(keyVersions, keyVersion.Name)
+	}
+	return key, keyVersions
+}
+
+type disk struct {
+	params   map[string]string
+	validate func(disk *compute.Disk)
+}
+
+var typeToDisk = map[string]*disk{
+	standardDiskType: {
+		params: map[string]string{
+			common.ParameterKeyType: standardDiskType,
+		},
+		validate: func(disk *compute.Disk) {
+			Expect(disk.Type).To(ContainSubstring(standardDiskType))
+		},
+	},
+	extremeDiskType: {
+		params: map[string]string{
+			common.ParameterKeyType:                    extremeDiskType,
+			common.ParameterKeyProvisionedIOPSOnCreate: provisionedIOPSOnCreate,
+		},
+		validate: func(disk *compute.Disk) {
+			Expect(disk.Type).To(ContainSubstring(extremeDiskType))
+			Expect(disk.ProvisionedIops).To(Equal(provisionedIOPSOnCreateInt))
+		},
+	},
+}
+
+func merge(a, b map[string]string) map[string]string {
+	res := map[string]string{}
+	for k, v := range a {
+		res[k] = v
+	}
+	for k, v := range b {
+		res[k] = v
+	}
+	return res
 }
