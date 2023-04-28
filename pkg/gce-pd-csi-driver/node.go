@@ -72,8 +72,7 @@ type GCENodeServer struct {
 
 	// A map storing all volumes with ongoing operations so that additional operations
 	// for that same volume (as defined by VolumeID) return an Aborted error
-	volumeLocks  *common.VolumeLocks
-	evalSymLinks func(string) (string, error)
+	volumeLocks *common.VolumeLocks
 }
 
 var _ csi.NodeServer = &GCENodeServer{}
@@ -182,10 +181,8 @@ func (ns *GCENodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePub
 		if err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("Error when getting device path: %v", err.Error()))
 		}
-		sourcePath, err = ns.evalSymLinks(filepath.Join("/dev/mapper", volumeKey.Name))
-		if err != nil {
-			return nil, status.Error(codes.Internal, fmt.Sprintf("NodePublishVolume can not evaluate source path: %v", err.Error()))
-		}
+
+		sourcePath = filepath.Join("/dev/mapper", volumeKey.Name)
 
 		// Expose block volume as file at target path
 		err = makeFile(targetPath)
@@ -341,12 +338,9 @@ func (ns *GCENodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 	if integrity {
 		klog.V(4).Infof("Integrity protected FS requested. Preparing to wipe device...")
 	}
-	devicePathReal, err := ns.evalSymLinks(devicePath)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("could not evaluate device path for device %q: %v", devicePath, err))
-	}
-	klog.V(4).Infof("Creating LUKS2 device on %s", devicePathReal)
-	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePathReal, volumeKey.Name, integrity)
+
+	klog.V(4).Infof("Creating LUKS2 device on %s", devicePath)
+	devicePath, err = ns.CryptMapper.OpenCryptDevice(ctx, devicePath, volumeKey.Name, integrity)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume failed on volume %v to %s, open crypt device failed (%v)", devicePath, stagingTargetPath, err))
 	}

@@ -38,7 +38,6 @@ import (
 	"flag"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -175,7 +174,7 @@ func handle() {
 			&cryptmapper.CryptDevice{},
 		)
 
-		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper, filepath.EvalSymlinks)
+		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper)
 	}
 
 	err = gceDriver.SetupGCEDriver(driverName, version, extraVolumeLabels, identityServer, controllerServer, nodeServer)
