@@ -41,7 +41,6 @@ import (
 	"math/rand"
 	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -256,7 +255,7 @@ func handle() {
 			&cryptmapper.CryptDevice{},
 		)
 
-		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper, filepath.EvalSymlinks)
+		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper)
 		if *maxConcurrentFormatAndMount > 0 {
 			nodeServer = nodeServer.WithSerializedFormatAndMount(*formatAndMountTimeout, *maxConcurrentFormatAndMount)
 		}
