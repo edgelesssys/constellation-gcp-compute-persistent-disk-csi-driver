@@ -52,7 +52,7 @@ helm uninstall
 
 ## Further Documentation
 
-- [Local Development](docs/local-development.md)
+- [Local Development](docs/kubernetes/development.md)
 - [User Guides](docs/kubernetes/user-guides)
 - [Driver Development](docs/kubernetes/development.md)
 

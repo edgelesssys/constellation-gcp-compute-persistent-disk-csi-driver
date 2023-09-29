@@ -81,12 +81,12 @@ func TestSanity(t *testing.T) {
 	}
 
 	mounter := mountmanager.NewFakeSafeMounter()
-	deviceUtils := deviceutils.NewFakeDeviceUtils()
+	deviceUtils := deviceutils.NewFakeDeviceUtils(true)
 
 	// Initialize GCE Driver
 	identityServer := driver.NewIdentityServer(gceDriver)
 	controllerServer := driver.NewControllerServer(gceDriver, cloudProvider, 0, 5*time.Minute)
-	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{}, func(s string) (string, error) { return s, nil })
+	nodeServer := driver.NewNodeServer(gceDriver, mounter, deviceUtils, metadataservice.NewFakeService(), mountmanager.NewFakeStatter(mounter), &fakeCryptMapper{})
 	err = gceDriver.SetupGCEDriver(driverName, vendorVersion, extraLabels, identityServer, controllerServer, nodeServer)
 	if err != nil {
 		t.Fatalf("Failed to initialize GCE CSI Driver: %v", err.Error())

@@ -38,7 +38,6 @@ import (
 	"flag"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -81,7 +80,12 @@ var (
 	waitForOpBackoffSteps     = flag.Int("wait-op-backoff-steps", 100, "Steps for wait for operation backoff")
 	waitForOpBackoffCap       = flag.Duration("wait-op-backoff-cap", 0, "Cap for wait for operation backoff")
 
-	maxprocs = flag.Int("maxprocs", 1, "GOMAXPROCS override")
+	maxProcs                = flag.Int("maxprocs", 1, "GOMAXPROCS override")
+	maxConcurrentFormat     = flag.Int("max-concurrent-format", 1, "The maximum number of concurrent format exec calls")
+	concurrentFormatTimeout = flag.Duration("concurrent-format-timeout", 1*time.Minute, "The maximum duration of a format operation before its concurrency token is released")
+
+	maxConcurrentFormatAndMount = flag.Int("max-concurrent-format-and-mount", 1, "If set then format and mount operations are serialized on each node. This is stronger than max-concurrent-format as it includes fsck and other mount operations")
+	formatAndMountTimeout       = flag.Duration("format-and-mount-timeout", 1*time.Minute, "The maximum duration of a format and mount operation before another such operation will be started. Used only if --serialize-format-and-mount")
 
 	version string
 )
@@ -110,7 +114,7 @@ func main() {
 func handle() {
 	var err error
 
-	runtime.GOMAXPROCS(*maxprocs)
+	runtime.GOMAXPROCS(*maxProcs)
 	klog.Infof("Sys info: NumCPU: %v MAXPROC: %v", runtime.NumCPU(), runtime.GOMAXPROCS(0))
 
 	if version == "" {
@@ -118,10 +122,14 @@ func handle() {
 	}
 	klog.V(2).Infof("Driver vendor version %v", version)
 
-	if *runControllerService && *httpEndpoint != "" && metrics.IsGKEComponentVersionAvailable() {
+	if *runControllerService && *httpEndpoint != "" {
 		mm := metrics.NewMetricsManager()
 		mm.InitializeHttpHandler(*httpEndpoint, *metricsPath)
-		mm.EmitGKEComponentVersion()
+		mm.RegisterPDCSIMetric()
+
+		if metrics.IsGKEComponentVersionAvailable() {
+			mm.EmitGKEComponentVersion()
+		}
 	}
 
 	if len(*extraVolumeLabelsStr) > 0 && !*runControllerService {
@@ -132,16 +140,16 @@ func handle() {
 		klog.Fatalf("Bad extra volume labels: %v", err.Error())
 	}
 
-	gceDriver := driver.GetGCEDriver()
-
-	//Initialize GCE Driver
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	//Initialize identity server
+	// Initialize driver
+	gceDriver := driver.GetGCEDriver()
+
+	// Initialize identity server
 	identityServer := driver.NewIdentityServer(gceDriver)
 
-	//Initialize requirements for the controller service
+	// Initialize requirements for the controller service
 	var controllerServer *driver.GCEControllerServer
 	if *runControllerService {
 		cloudProvider, err := gce.CreateCloudProvider(ctx, version, *cloudConfigFilePath, *computeEndpoint)
@@ -155,10 +163,10 @@ func handle() {
 		klog.Warningf("controller service is disabled but cloud config given - it has no effect")
 	}
 
-	//Initialize requirements for the node service
+	// Initialize requirements for the node service
 	var nodeServer *driver.GCENodeServer
 	if *runNodeService {
-		mounter, err := mountmanager.NewSafeMounter()
+		mounter, err := mountmanager.NewSafeMounter(*maxConcurrentFormat, *concurrentFormatTimeout)
 		if err != nil {
 			klog.Fatalf("Failed to get safe mounter: %v", err.Error())
 		}
@@ -170,12 +178,12 @@ func handle() {
 		}
 
 		// [Edgeless] set up Constellation key management
-		mapper := cryptmapper.New(
-			cryptKms.NewConstellationKMS(*constellationAddr),
-			&cryptmapper.CryptDevice{},
-		)
+		mapper := cryptmapper.New(cryptKms.NewConstellationKMS(*constellationAddr))
 
-		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper, filepath.EvalSymlinks)
+		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper)
+		if *maxConcurrentFormatAndMount > 0 {
+			nodeServer = nodeServer.WithSerializedFormatAndMount(*formatAndMountTimeout, *maxConcurrentFormatAndMount)
+		}
 	}
 
 	err = gceDriver.SetupGCEDriver(driverName, version, extraVolumeLabels, identityServer, controllerServer, nodeServer)

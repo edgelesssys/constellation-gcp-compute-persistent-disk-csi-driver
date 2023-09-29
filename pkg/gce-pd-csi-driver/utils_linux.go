@@ -21,6 +21,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/mount-utils"
 	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
@@ -53,7 +54,33 @@ func getDevicePath(ns *GCENodeServer, volumeID, partition string) (string, error
 	// return devicePath, nil
 }
 
-func formatAndMount(source, target, fstype string, options []string, m *mount.SafeFormatAndMount) error {
+func (ns *GCENodeServer) formatAndMount(source, target, fstype string, options []string, m *mount.SafeFormatAndMount) error {
+	if ns.formatAndMountSemaphore != nil {
+		done := make(chan any)
+		defer close(done)
+
+		// Aquire the semaphore. This will block if another formatAndMount has put an item
+		// into the semaphore channel.
+		ns.formatAndMountSemaphore <- struct{}{}
+
+		go func() {
+			defer func() { <-ns.formatAndMountSemaphore }()
+
+			// Add a timeout where so the semaphore will be released even if
+			// formatAndMount is still working. This allows the node to make progress on
+			// volumes if some error causes one formatAndMount to get stuck. The
+			// motivation for this serialization is to reduce memory usage; if stuck
+			// processes cause OOMs then the containers will be killed and restarted,
+			// including the stuck threads and with any luck making progress.
+			timeout := time.NewTimer(ns.formatAndMountTimeout)
+			defer timeout.Stop()
+
+			select {
+			case <-done:
+			case <-timeout.C:
+			}
+		}()
+	}
 	return m.FormatAndMount(source, target, fstype, options)
 }
 
