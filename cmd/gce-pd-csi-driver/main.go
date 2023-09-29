@@ -178,10 +178,7 @@ func handle() {
 		}
 
 		// [Edgeless] set up Constellation key management
-		mapper := cryptmapper.New(
-			cryptKms.NewConstellationKMS(*constellationAddr),
-			&cryptmapper.CryptDevice{},
-		)
+		mapper := cryptmapper.New(cryptKms.NewConstellationKMS(*constellationAddr))
 
 		nodeServer = driver.NewNodeServer(gceDriver, mounter, deviceUtils, meta, statter, mapper)
 		if *maxConcurrentFormatAndMount > 0 {

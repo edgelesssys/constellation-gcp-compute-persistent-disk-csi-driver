@@ -37,6 +37,7 @@ ARG TARGETPLATFORM
 
 WORKDIR /go/src/sigs.k8s.io/gcp-compute-persistent-disk-csi-driver
 ADD . .
+RUN apt update --yes && apt install -y libcryptsetup-dev
 RUN GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GCE_PD_CSI_STAGING_VERSION=$STAGINGVERSION make gce-pd-driver
 
 # Start from Kubernetes Debian base.
