@@ -5,7 +5,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: encrypted-storage
+  storageClassName: encrypted-rwo
   resources:
     requests:
       storage: 20Gi
