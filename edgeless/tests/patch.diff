@@ -1,5 +1,5 @@
---- o.yaml	2023-04-13 12:13:33.181285060 +0200
-+++ sonobuoy.yaml	2023-04-13 09:36:28.475532271 +0200
+--- sonobuoy_orig.yaml	2023-10-02 13:48:16.682794524 +0200
++++ sonobuoy.yaml	2023-10-02 13:51:33.817883783 +0200
 @@ -64,6 +64,10 @@
  data:
    plugin-0.yaml: |-
@@ -29,7 +29,7 @@
    plugin-1.yaml: |-
      podSpec:
        containers: []
-@@ -245,4 +251,28 @@
+@@ -245,4 +251,25 @@
      sonobuoy-component: aggregator
    type: ClusterIP
  ---
@@ -39,7 +39,7 @@
 +metadata:
 +  name: csi-driver-test-config
 +  namespace: sonobuoy
-+data: 
++data:
 +  driver.yaml: |
 +    StorageClass:
 +      FromName: true
