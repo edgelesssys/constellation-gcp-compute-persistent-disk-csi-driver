@@ -4,7 +4,7 @@ go 1.22.0
 
 toolchain go1.22.2
 
-require github.com/edgelesssys/constellation/v2 v2.11.0
+require github.com/edgelesssys/constellation/v2 v2.11.1-0.20231005092022-f69ae2612236
 
 replace github.com/martinjungblut/go-cryptsetup => github.com/daniel-weisse/go-cryptsetup v0.0.0-20230705150314-d8c07bd1723c
 
