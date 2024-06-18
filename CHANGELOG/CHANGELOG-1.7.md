@@ -1,3 +1,112 @@
+# v1.7.20 - Changelog since v1.7.19
+
+## Changes by Kind
+
+### Uncategorized
+
+- Bump golang.org/x/crypto from v0.14.0 to v0.17.0 to fix CVE-2023-48795 ([#1554](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1554), [@sunnylovestiramisu](https://github.com/sunnylovestiramisu))
+
+## Dependencies
+
+### Added
+_Nothing has changed._
+
+### Changed
+- golang.org/x/crypto: v0.14.0 → v0.17.0
+- golang.org/x/sys: v0.13.0 → v0.15.0
+- golang.org/x/term: v0.13.0 → v0.15.0
+- golang.org/x/text: v0.13.0 → v0.14.0
+
+### Removed
+_Nothing has changed._
+
+
+# v1.7.19 - Changelog since v1.7.18
+
+## Changes by Kind
+
+### Uncategorized
+
+- Update golang builder to 1.20.12 ([#1539](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1539), [@k8s-infra-cherrypick-robot](https://github.com/k8s-infra-cherrypick-robot))
+
+## Dependencies
+
+### Added
+_Nothing has changed._
+
+### Changed
+_Nothing has changed._
+
+### Removed
+_Nothing has changed._
+
+
+# v1.7.18 - Changelog since v1.7.17
+
+## Changes by Kind
+
+### Bug or Regression
+
+- Bump Golang Builder version to 1.20.11 ([#1503](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1503), [@uriel-guzman](https://github.com/uriel-guzman))
+- Bump google.golang.org/grpc from v1.55.1 to v1.56.3 to fix CVE-2023-44487. ([#1497](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1497), [@uriel-guzman](https://github.com/uriel-guzman))
+
+## Dependencies
+
+### Added
+_Nothing has changed._
+
+### Changed
+- github.com/cncf/xds/go: [32f1caf → e9ce688](https://github.com/cncf/xds/go/compare/32f1caf...e9ce688)
+- github.com/envoyproxy/go-control-plane: [v0.11.0 → 9239064](https://github.com/envoyproxy/go-control-plane/compare/v0.11.0...9239064)
+- github.com/envoyproxy/protoc-gen-validate: [v0.10.0 → v0.10.1](https://github.com/envoyproxy/protoc-gen-validate/compare/v0.10.0...v0.10.1)
+- google.golang.org/grpc: v1.55.1 → v1.56.3
+
+### Removed
+_Nothing has changed._
+
+# v1.7.17 - Changelog since v1.7.15
+
+## Changes by Kind
+
+### Bug or Regression
+
+- CVE fixes: CVE-2023-39323 ([#1412](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1412), [@dannawang0221](https://github.com/dannawang0221))
+
+### Other (Cleanup or Flake)
+
+- Update go version to 1.20.10 ([#1453](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1453), [@tyuchn](https://github.com/tyuchn))
+
+## Dependencies
+
+### Added
+
+_Nothing has changed._
+
+### Changed
+
+- golang.org/x/crypto: v0.9.0 → v0.14.0
+- golang.org/x/net: v0.10.0 → v0.17.0
+- golang.org/x/sys: v0.8.0 → v0.13.0
+- golang.org/x/term: v0.8.0 → v0.13.0
+- golang.org/x/text: v0.9.0 → v0.13.0
+
+# v1.7.15 - Changelog since v1.7.13
+
+## Changes by Kind
+
+### Bug or Regression
+
+- bump go version to 1.20.8 ([#1394](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1394), [@tyuchn](https://github.com/tyuchn))
+- Remove ARG BUILDPLATFORM from Dockerfile ([#1385](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1385), [@tyuchn](https://github.com/tyuchn))
+
+# v1.7.13 - Changelog since v1.7.12
+
+## Changes by Kind
+
+### Bug or Regression
+
+- Upgrade google.golang.org/grpc from v1.55.0 -> v1.55.1 to address https://github.com/grpc/grpc-go/issues/6373 ([#1373](https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver/pull/1373), [@pwschuurman](https://github.com/pwschuurman))
+
 # v1.7.12 - Changelog since v1.7.11
 
 ## Changes by Kind
@@ -41,6 +150,7 @@
 ## Dependencies
 
 ### Added
+
 - bitbucket.org/creachadair/stringset: v0.0.9
 - cloud.google.com/go/accessapproval: v1.6.0
 - cloud.google.com/go/accesscontextmanager: v1.7.0
@@ -218,6 +328,7 @@
 - sigs.k8s.io/json: 9f7c6b3
 
 ### Changed
+
 - cloud.google.com/go/bigquery: v1.8.0 → v1.50.0
 - cloud.google.com/go/datastore: v1.1.0 → v1.11.0
 - cloud.google.com/go/firestore: v1.1.0 → v1.9.0
@@ -338,6 +449,7 @@
 - sigs.k8s.io/yaml: v1.2.0 → v1.3.0
 
 ### Removed
+
 - contrib.go.opencensus.io/exporter/stackdriver: v0.12.8
 - git.apache.org/thrift.git: 2566ecd
 - github.com/aws/aws-k8s-tester: [b411acf](https://github.com/aws/aws-k8s-tester/tree/b411acf)
@@ -474,10 +586,13 @@ _Nothing has changed._
 ## Dependencies
 
 ### Added
+
 _Nothing has changed._
 
 ### Changed
+
 - github.com/prometheus/client_golang: [v1.11.0 → v1.11.1](https://github.com/prometheus/client_golang/compare/v1.11.0...v1.11.1)
 
 ### Removed
+
 _Nothing has changed._

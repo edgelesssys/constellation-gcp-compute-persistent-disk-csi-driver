@@ -54,6 +54,7 @@ type GCEDriver struct {
 	name              string
 	vendorVersion     string
 	extraVolumeLabels map[string]string
+	extraTags         map[string]string
 
 	ids *GCEIdentityServer
 	ns  *GCENodeServer
@@ -68,7 +69,7 @@ func GetGCEDriver() *GCEDriver {
 	return &GCEDriver{}
 }
 
-func (gceDriver *GCEDriver) SetupGCEDriver(name, vendorVersion string, extraVolumeLabels map[string]string, identityServer *GCEIdentityServer, controllerServer *GCEControllerServer, nodeServer *GCENodeServer) error {
+func (gceDriver *GCEDriver) SetupGCEDriver(name, vendorVersion string, extraVolumeLabels map[string]string, extraTags map[string]string, identityServer *GCEIdentityServer, controllerServer *GCEControllerServer, nodeServer *GCENodeServer) error {
 	if name == "" {
 		return fmt.Errorf("Driver name missing")
 	}
@@ -102,6 +103,7 @@ func (gceDriver *GCEDriver) SetupGCEDriver(name, vendorVersion string, extraVolu
 	gceDriver.name = name
 	gceDriver.vendorVersion = vendorVersion
 	gceDriver.extraVolumeLabels = extraVolumeLabels
+	gceDriver.extraTags = extraTags
 	gceDriver.ids = identityServer
 	gceDriver.cs = controllerServer
 	gceDriver.ns = nodeServer
@@ -171,22 +173,26 @@ func NewNodeServer(gceDriver *GCEDriver, mounter *mount.SafeFormatAndMount, devi
 	}
 }
 
-func NewControllerServer(gceDriver *GCEDriver, cloudProvider gce.GCECompute, errorBackoffInitialDuration, errorBackoffMaxDuration time.Duration) *GCEControllerServer {
+func NewControllerServer(gceDriver *GCEDriver, cloudProvider gce.GCECompute, errorBackoffInitialDuration, errorBackoffMaxDuration time.Duration, fallbackRequisiteZones []string, enableStoragePools bool, multiZoneVolumeHandleConfig MultiZoneVolumeHandleConfig, listVolumesConfig ListVolumesConfig) *GCEControllerServer {
 	return &GCEControllerServer{
-		Driver:        gceDriver,
-		CloudProvider: cloudProvider,
-		seen:          map[string]int{},
-		volumeLocks:   common.NewVolumeLocks(),
-		errorBackoff:  newCsiErrorBackoff(errorBackoffInitialDuration, errorBackoffMaxDuration),
+		Driver:                      gceDriver,
+		CloudProvider:               cloudProvider,
+		volumeEntriesSeen:           map[string]int{},
+		volumeLocks:                 common.NewVolumeLocks(),
+		errorBackoff:                newCsiErrorBackoff(errorBackoffInitialDuration, errorBackoffMaxDuration),
+		fallbackRequisiteZones:      fallbackRequisiteZones,
+		enableStoragePools:          enableStoragePools,
+		multiZoneVolumeHandleConfig: multiZoneVolumeHandleConfig,
+		listVolumesConfig:           listVolumesConfig,
 	}
 }
 
-func (gceDriver *GCEDriver) Run(endpoint string, grpcLogCharCap int) {
+func (gceDriver *GCEDriver) Run(endpoint string, grpcLogCharCap int, enableOtelTracing bool) {
 	maxLogChar = grpcLogCharCap
 
 	klog.V(4).Infof("Driver: %v", gceDriver.name)
-	// Start the nonblocking GRPC
-	s := NewNonBlockingGRPCServer()
+	//Start the nonblocking GRPC
+	s := NewNonBlockingGRPCServer(enableOtelTracing)
 	// TODO(#34): Only start specific servers based on a flag.
 	// In the future have this only run specific combinations of servers depending on which version this is.
 	// The schema for that was in util. basically it was just s.start but with some nil servers.

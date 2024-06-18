@@ -46,9 +46,13 @@ func initGCEDriverWithCloudProvider(t *testing.T, cloudProvider gce.GCECompute) 
 	gceDriver := GetGCEDriver()
 	errorBackoffInitialDuration := 200 * time.Millisecond
 	errorBackoffMaxDuration := 5 * time.Minute
+	fallbackRequisiteZones := []string{}
+	enableStoragePools := false
+	multiZoneVolumeHandleConfig := MultiZoneVolumeHandleConfig{}
+	listVolumesConfig := ListVolumesConfig{}
 
-	controllerServer := NewControllerServer(gceDriver, cloudProvider, errorBackoffInitialDuration, errorBackoffMaxDuration)
-	err := gceDriver.SetupGCEDriver(driver, vendorVersion, nil, nil, controllerServer, nil)
+	controllerServer := NewControllerServer(gceDriver, cloudProvider, errorBackoffInitialDuration, errorBackoffMaxDuration, fallbackRequisiteZones, enableStoragePools, multiZoneVolumeHandleConfig, listVolumesConfig)
+	err := gceDriver.SetupGCEDriver(driver, vendorVersion, nil, nil, nil, controllerServer, nil)
 	if err != nil {
 		t.Fatalf("Failed to setup GCE Driver: %v", err)
 	}

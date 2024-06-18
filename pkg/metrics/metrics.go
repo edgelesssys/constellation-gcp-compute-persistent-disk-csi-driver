@@ -17,6 +17,7 @@ limitations under the License.
 package metrics
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -36,6 +37,7 @@ const (
 	pdcsiDriverName                  = "pd.csi.storage.gke.io"
 	DefaultDiskTypeForMetric         = "unknownDiskType"
 	DefaultEnableConfidentialCompute = "unknownConfidentialMode"
+	DefaultEnableStoragePools        = "unknownStoragePools"
 )
 
 var (
@@ -52,7 +54,7 @@ var (
 			Help:           "CSI server side error metrics",
 			StabilityLevel: metrics.ALPHA,
 		},
-		[]string{"driver_name", "method_name", "grpc_status_code", "disk_type", "enable_confidential_storage"})
+		[]string{"driver_name", "method_name", "grpc_status_code", "disk_type", "enable_confidential_storage", "enable_storage_pools"})
 )
 
 type MetricsManager struct {
@@ -94,12 +96,11 @@ func (mm *MetricsManager) RecordOperationErrorMetrics(
 	operationName string,
 	operationErr error,
 	diskType string,
-	enableConfidentialStorage string) {
-	err := codes.OK.String()
-	if operationErr != nil {
-		err = common.CodeForError(operationErr).String()
-	}
-	pdcsiOperationErrorsMetric.WithLabelValues(pdcsiDriverName, "/csi.v1.Controller/"+operationName, err, diskType, enableConfidentialStorage).Inc()
+	enableConfidentialStorage string,
+	enableStoragePools string) {
+	errCode := errorCodeLabelValue(operationErr)
+	pdcsiOperationErrorsMetric.WithLabelValues(pdcsiDriverName, "/csi.v1.Controller/"+operationName, errCode, diskType, enableConfidentialStorage, enableStoragePools).Inc()
+	klog.Infof("Recorded PDCSI operation error code: %q", errCode)
 }
 
 func (mm *MetricsManager) EmitGKEComponentVersion() error {
@@ -156,12 +157,29 @@ func IsGKEComponentVersionAvailable() bool {
 	return true
 }
 
-func GetMetricParameters(disk *gce.CloudDisk) (string, string) {
+func GetMetricParameters(disk *gce.CloudDisk) (string, string, string) {
 	diskType := DefaultDiskTypeForMetric
 	enableConfidentialStorage := DefaultEnableConfidentialCompute
+	enableStoragePools := DefaultEnableStoragePools
 	if disk != nil {
 		diskType = disk.GetPDType()
 		enableConfidentialStorage = strconv.FormatBool(disk.GetEnableConfidentialCompute())
+		enableStoragePools = strconv.FormatBool(disk.GetEnableStoragePools())
 	}
-	return diskType, enableConfidentialStorage
+	return diskType, enableConfidentialStorage, enableStoragePools
+}
+
+// errorCodeLabelValue returns the label value for the given operation error.
+// This was separated into a helper function for unit testing purposes.
+func errorCodeLabelValue(operationErr error) string {
+	err := codes.OK.String()
+	if operationErr != nil {
+		// If the operationErr is a TemporaryError, unwrap the temporary error before passing it to CodeForError.
+		var tempErr *common.TemporaryError
+		if errors.As(operationErr, &tempErr) {
+			operationErr = tempErr.Unwrap()
+		}
+		err = common.CodeForError(operationErr).String()
+	}
+	return err
 }

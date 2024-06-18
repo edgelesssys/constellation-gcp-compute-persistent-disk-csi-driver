@@ -227,10 +227,43 @@ func (d *CloudDisk) GetMultiWriter() bool {
 func (d *CloudDisk) GetEnableConfidentialCompute() bool {
 	switch {
 	case d.disk != nil:
-		return false
+		return d.disk.EnableConfidentialCompute
 	case d.betaDisk != nil:
 		return d.betaDisk.EnableConfidentialCompute
 	default:
 		return false
+	}
+}
+
+func (d *CloudDisk) GetEnableStoragePools() bool {
+	switch {
+	case d.disk != nil:
+		return d.disk.StoragePool != ""
+	case d.betaDisk != nil:
+		return d.betaDisk.StoragePool != ""
+	default:
+		return false
+	}
+}
+
+func (d *CloudDisk) GetLabels() map[string]string {
+	switch {
+	case d.disk != nil:
+		return d.disk.Labels
+	case d.betaDisk != nil:
+		return d.betaDisk.Labels
+	default:
+		return nil
+	}
+}
+
+func (d *CloudDisk) GetAccessMode() string {
+	switch {
+	case d.disk != nil:
+		return d.disk.AccessMode
+	case d.betaDisk != nil:
+		return d.betaDisk.AccessMode
+	default:
+		return ""
 	}
 }
