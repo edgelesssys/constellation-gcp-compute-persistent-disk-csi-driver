@@ -30,7 +30,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM --platform=$BUILDPLATFORM golang:1.22.4-bullseye as builder
+FROM --platform=$BUILDPLATFORM golang:1.22.4-bookworm as builder
 
 ARG STAGINGVERSION
 ARG TARGETPLATFORM
@@ -95,8 +95,7 @@ COPY --from=debian /bin/udevadm /bin/udevadm
 COPY --from=debian /sbin/dmsetup /sbin/dmsetup
 
 # Copy shared libraries into distroless base.
-COPY --from=debian /lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre.so.3 \
-    /lib/${LIB_DIR_PREFIX}-linux-gnu/libselinux.so.1 \
+COPY --from=debian /lib/${LIB_DIR_PREFIX}-linux-gnu/libselinux.so.1 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/libtinfo.so.6 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/libe2p.so.2 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/libcom_err.so.2 \
@@ -106,6 +105,19 @@ COPY --from=debian /lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre.so.3 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/liblzma.so.5 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/libreadline.so.8 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/libz.so.1 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libc.so.6 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/liburcu.so.8 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libcap.so.2 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libcrypto.so.3 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libdbus-1.so.3 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libgcrypt.so.20 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libjson-c.so.5 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/liblz4.so.1 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libm.so.6 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libnvme-mi.so.1 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libnvme.so.1 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libsystemd.so.0 \
+    /lib/${LIB_DIR_PREFIX}-linux-gnu/libzstd.so.1 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/libpthread.so.0 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/libcryptsetup.so.12 \
     /lib/${LIB_DIR_PREFIX}-linux-gnu/libcryptsetup.so \
@@ -116,26 +128,19 @@ COPY --from=debian /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libblkid.so.1 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libinih.so.1 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libmount.so.1 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libudev.so.1 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libuuid.so.1.3.0 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libuuid.so.1 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libacl.so.1 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libattr.so.1 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libedit.so.2 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicudata.so.67 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicui18n.so.67 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicuuc.so.67 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicudata.so.72 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicui18n.so.72 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libicuuc.so.72 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libkmod.so.2 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libmd.so.0 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre2-8.so.0 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libpcre2-8.so.0.10.1 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libstdc++.so.6  \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libargon2.so.1 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libjson-c.so.5.1.0 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libjson-c.so.5 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/engines-1.1/afalg.so \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/engines-1.1/padlock.so \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libcrypto.so.1.1 \
-    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libssl.so.1.1 \
+    /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libgpg-error.so.0 \
     /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/
 
 # Copy NVME support required script and rules into distroless base.
