@@ -18,10 +18,19 @@ limitations under the License.
 package metrics
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
 	"testing"
 
-	computebeta "google.golang.org/api/compute/v0.beta"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/common"
 	gce "sigs.k8s.io/gcp-compute-persistent-disk-csi-driver/pkg/gce-cloud-provider/compute"
 )
 
@@ -29,53 +38,148 @@ const (
 	hyperdiskBalanced = "hyperdisk-balanced"
 )
 
-func CreateDiskWithConfidentialCompute(betaVersion bool, confidentialCompute bool, diskType string) *gce.CloudDisk {
-	if betaVersion {
-		return gce.CloudDiskFromBeta(&computebeta.Disk{
-			EnableConfidentialCompute: confidentialCompute,
-			Type:                      diskType,
-		})
-	}
+func CreateDiskWithConfidentialCompute(confidentialCompute bool, diskType string) *gce.CloudDisk {
 	return gce.CloudDiskFromV1(&compute.Disk{
-		Type: diskType,
+		EnableConfidentialCompute: confidentialCompute,
+		Type:                      diskType,
 	})
 }
 
-func TestGetEnableConfidentialCompute(t *testing.T) {
+func CreateDiskWithStoragePool(storagePool string, diskType string) *gce.CloudDisk {
+	return gce.CloudDiskFromV1(&compute.Disk{
+		StoragePool: storagePool,
+		Type:        diskType,
+	})
+}
+
+func TestGetMetricParameters(t *testing.T) {
 	testCases := []struct {
 		name                              string
 		disk                              *gce.CloudDisk
 		expectedEnableConfidentialCompute string
 		expectedDiskType                  string
+		expectedEnableStoragePools        string
 	}{
 		{
-			name:                              "test betaDisk with enableConfidentialCompute=false",
-			disk:                              CreateDiskWithConfidentialCompute(true, false, hyperdiskBalanced),
+			name:                              "test disk with enableConfidentialCompute=false",
+			disk:                              CreateDiskWithConfidentialCompute(false, hyperdiskBalanced),
 			expectedEnableConfidentialCompute: "false",
 			expectedDiskType:                  hyperdiskBalanced,
+			expectedEnableStoragePools:        "false",
 		},
 		{
-			name:                              "test betaDisk with enableConfidentialCompute=true",
-			disk:                              CreateDiskWithConfidentialCompute(true, true, hyperdiskBalanced),
+			name:                              "test disk with enableConfidentialCompute=true",
+			disk:                              CreateDiskWithConfidentialCompute(true, hyperdiskBalanced),
 			expectedEnableConfidentialCompute: "true",
 			expectedDiskType:                  hyperdiskBalanced,
+			expectedEnableStoragePools:        "false",
 		},
 		{
-			name:                              "test disk withpit enableConfidentialCompute",
-			disk:                              CreateDiskWithConfidentialCompute(false, false, hyperdiskBalanced),
+			name:                              "test disk with storage pool projects/my-project/zone/us-central1-a/storagePools/sp1",
+			disk:                              CreateDiskWithStoragePool("projects/my-project/zone/us-central1-a/storagePools/sp1", hyperdiskBalanced),
 			expectedEnableConfidentialCompute: "false",
 			expectedDiskType:                  hyperdiskBalanced,
+			expectedEnableStoragePools:        "true",
+		},
+		{
+			name:                              "test disk with no storage pool",
+			disk:                              CreateDiskWithStoragePool("", hyperdiskBalanced),
+			expectedEnableConfidentialCompute: "false",
+			expectedDiskType:                  hyperdiskBalanced,
+			expectedEnableStoragePools:        "false",
+		},
+		{
+			name:                              "test nil disk",
+			disk:                              nil,
+			expectedEnableConfidentialCompute: DefaultEnableConfidentialCompute,
+			expectedDiskType:                  DefaultDiskTypeForMetric,
+			expectedEnableStoragePools:        DefaultEnableStoragePools,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Logf("Running test: %v", tc.name)
-		diskType, confidentialCompute := GetMetricParameters(tc.disk)
+		diskType, confidentialCompute, enableStoragePools := GetMetricParameters(tc.disk)
 		if confidentialCompute != tc.expectedEnableConfidentialCompute {
-			t.Fatalf("Got confidentialCompute value %v expected %v", confidentialCompute, tc.expectedEnableConfidentialCompute)
+			t.Fatalf("Got confidentialCompute value %q expected %q", confidentialCompute, tc.expectedEnableConfidentialCompute)
 		}
 		if diskType != tc.expectedDiskType {
-			t.Fatalf("Got confidentialCompute value %v expected %v", diskType, tc.expectedDiskType)
+			t.Fatalf("Got diskType value %q expected %q", diskType, tc.expectedDiskType)
+		}
+		if enableStoragePools != tc.expectedEnableStoragePools {
+			t.Fatalf("Got enableStoragePools value %q expected %q", enableStoragePools, tc.expectedEnableStoragePools)
+		}
+	}
+}
+
+func TestErrorCodeLabelValue(t *testing.T) {
+	testCases := []struct {
+		name          string
+		operationErr  error
+		wantErrorCode string
+	}{
+		{
+			name:          "Not googleapi.Error",
+			operationErr:  errors.New("I am not a googleapi.Error"),
+			wantErrorCode: "Internal",
+		},
+		{
+			name:          "User error",
+			operationErr:  &googleapi.Error{Code: http.StatusBadRequest, Message: "User error with bad request"},
+			wantErrorCode: "InvalidArgument",
+		},
+		{
+			name:          "googleapi.Error but not a user error",
+			operationErr:  &googleapi.Error{Code: http.StatusInternalServerError, Message: "Internal error"},
+			wantErrorCode: "Internal",
+		},
+		{
+			name:          "context canceled error",
+			operationErr:  context.Canceled,
+			wantErrorCode: "Canceled",
+		},
+		{
+			name:          "context deadline exceeded error",
+			operationErr:  context.DeadlineExceeded,
+			wantErrorCode: "DeadlineExceeded",
+		},
+		{
+			name:          "status error with Aborted error code",
+			operationErr:  status.Error(codes.Aborted, "aborted error"),
+			wantErrorCode: "Aborted",
+		},
+		{
+			name:          "user multiattach error",
+			operationErr:  fmt.Errorf("The disk resource 'projects/foo/disk/bar' is already being used by 'projects/foo/instances/1'"),
+			wantErrorCode: "InvalidArgument",
+		},
+		{
+			name:          "TemporaryError that wraps googleapi error",
+			operationErr:  common.NewTemporaryError(codes.Unavailable, &googleapi.Error{Code: http.StatusBadRequest, Message: "User error with bad request"}),
+			wantErrorCode: "InvalidArgument",
+		},
+		{
+			name:          "TemporaryError that wraps fmt.Errorf, which wraps googleapi error",
+			operationErr:  common.NewTemporaryError(codes.Aborted, fmt.Errorf("got error: %w", &googleapi.Error{Code: http.StatusBadRequest, Message: "User error with bad request"})),
+			wantErrorCode: "InvalidArgument",
+		},
+		{
+			name:          "TemporaryError that wraps status error",
+			operationErr:  common.NewTemporaryError(codes.Aborted, status.Error(codes.InvalidArgument, "User error with bad request")),
+			wantErrorCode: "InvalidArgument",
+		},
+		{
+			name:          "TemporaryError that wraps multiattach error",
+			operationErr:  common.NewTemporaryError(codes.Unavailable, fmt.Errorf("The disk resource 'projects/foo/disk/bar' is already being used by 'projects/foo/instances/1'")),
+			wantErrorCode: "InvalidArgument",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Logf("Running test: %v", tc.name)
+		errCode := errorCodeLabelValue(tc.operationErr)
+		if diff := cmp.Diff(tc.wantErrorCode, errCode); diff != "" {
+			t.Errorf("%s: -want err, +got err\n%s", tc.name, diff)
 		}
 	}
 }
