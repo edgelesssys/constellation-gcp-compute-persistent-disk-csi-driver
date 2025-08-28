@@ -21,7 +21,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 
@@ -74,9 +73,6 @@ func (s *nonBlockingGRPCServer) ForceStop() {
 
 func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
 	grpcInterceptor := grpc.UnaryInterceptor(logGRPC)
-	if s.otelTracing {
-		grpcInterceptor = grpc.ChainUnaryInterceptor(logGRPC, otelgrpc.UnaryServerInterceptor())
-	}
 
 	opts := []grpc.ServerOption{
 		grpcInterceptor,
