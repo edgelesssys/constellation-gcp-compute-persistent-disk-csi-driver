@@ -3,7 +3,7 @@ module sigs.k8s.io/gcp-compute-persistent-disk-csi-driver
 go 1.24.6
 
 replace (
-	github.com/martinjungblut/go-cryptsetup => github.com/edgelesssys/go-cryptsetup v0.0.0-20250821104430-e7e52279791d
+	github.com/martinjungblut/go-cryptsetup => github.com/edgelesssys/go-cryptsetup v0.0.0-20250822075033-840d240dddf8
 	k8s.io/client-go => k8s.io/client-go v0.24.1
 )
 
@@ -12,7 +12,7 @@ require (
 	cloud.google.com/go/resourcemanager v1.10.6
 	github.com/GoogleCloudPlatform/k8s-cloud-provider v1.24.0
 	github.com/container-storage-interface/spec v1.6.0
-	github.com/edgelesssys/constellation/v2 v2.11.1-0.20250821135258-c5d2e6aec565
+	github.com/edgelesssys/constellation/v2 v2.11.1-0.20250828083424-bb8d2c8a5c0a
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.15.0

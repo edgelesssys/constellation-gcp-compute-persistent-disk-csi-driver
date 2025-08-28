@@ -138,10 +138,10 @@ github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZm
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
-github.com/edgelesssys/constellation/v2 v2.11.1-0.20250821135258-c5d2e6aec565 h1:Tf4PVsQg/+nZlSp2u39B2Ww7AvrrmyRHp/P5VbIVlPA=
-github.com/edgelesssys/constellation/v2 v2.11.1-0.20250821135258-c5d2e6aec565/go.mod h1:6kJZNwqEwXAk9ztYlR1f6Ik2pufFXdOJdXB5DHSzy08=
-github.com/edgelesssys/go-cryptsetup v0.0.0-20250821104430-e7e52279791d h1:jmllPpcT5MstwYeG1FMMFT7qr94dTS1DTgZx23K+H20=
-github.com/edgelesssys/go-cryptsetup v0.0.0-20250821104430-e7e52279791d/go.mod h1:gZoZ0+POlM1ge/VUxWpMmZVNPzzMJ7l436CgkQ5+qzU=
+github.com/edgelesssys/constellation/v2 v2.11.1-0.20250828083424-bb8d2c8a5c0a h1:I348dIAKStpPlGfDifjciNvmrV1Mi45tz1Nidbf1zhc=
+github.com/edgelesssys/constellation/v2 v2.11.1-0.20250828083424-bb8d2c8a5c0a/go.mod h1:EHBtUJsKX/ckRoUKt4eirT2cg7ZhtWbWiHxD/iss/4g=
+github.com/edgelesssys/go-cryptsetup v0.0.0-20250822075033-840d240dddf8 h1:aZsuG/e0UNZSttE63TplTeTpYjpl8A2GXbNQYMRUktw=
+github.com/edgelesssys/go-cryptsetup v0.0.0-20250822075033-840d240dddf8/go.mod h1:gZoZ0+POlM1ge/VUxWpMmZVNPzzMJ7l436CgkQ5+qzU=
 github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153/go.mod h1:/Zj4wYkgs4iZTTu3o/KG3Itv/qCCa8VVMlb3i9OVuzc=
 github.com/emicklei/go-restful v0.0.0-20170410110728-ff4f55a20633/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
 github.com/emicklei/go-restful v2.9.5+incompatible/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
